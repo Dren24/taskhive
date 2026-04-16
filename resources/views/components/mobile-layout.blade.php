@@ -45,13 +45,13 @@
                         </svg>
                         My Tasks
                     </a>
-                    <a href="{{ route('tasks.create') }}"
+                    <a href="{{ route('projects.index') }}"
                        class="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition
-                              {{ request()->routeIs('tasks.create') ? 'bg-white/20 text-white' : 'text-purple-200 hover:bg-white/10 hover:text-white' }}">
+                              {{ request()->routeIs('projects.*') ? 'bg-white/20 text-white' : 'text-purple-200 hover:bg-white/10 hover:text-white' }}">
                         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
                         </svg>
-                        New Task
+                        Projects
                     </a>
                 </nav>
 
@@ -88,6 +88,7 @@
                             @if(request()->routeIs('dashboard'))          Dashboard
                             @elseif(request()->routeIs('tasks.create'))   New Task
                             @elseif(request()->routeIs('tasks.edit'))     Edit Task
+                            @elseif(request()->routeIs('projects.*'))     Projects
                             @else                                          My Tasks
                             @endif
                         </h1>

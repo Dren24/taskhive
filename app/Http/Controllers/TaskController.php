@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
+    private function userProjects()
+    {
+        return Auth::user()->projects()->orderBy('name')->get();
+    }
+
     public function index()
     {
         /** @var User $user */
@@ -19,7 +24,8 @@ class TaskController extends Controller
 
     public function create()
     {
-        return view('tasks.create');
+        $projects = $this->userProjects();
+        return view('tasks.create', compact('projects'));
     }
 
     public function store(Request $request)
@@ -30,6 +36,7 @@ class TaskController extends Controller
             'priority'    => 'required|in:low,medium,high',
             'status'      => 'required|in:todo,in_progress,done',
             'due_date'    => 'nullable|date',
+            'project_id'  => 'nullable|exists:projects,id',
         ]);
 
         /** @var User $user */
@@ -42,7 +49,8 @@ class TaskController extends Controller
     public function edit(Task $task)
     {
         abort_if($task->user_id !== Auth::id(), 403);
-        return view('tasks.edit', compact('task'));
+        $projects = $this->userProjects();
+        return view('tasks.edit', compact('task', 'projects'));
     }
 
     public function update(Request $request, Task $task)
@@ -55,6 +63,7 @@ class TaskController extends Controller
             'priority'    => 'required|in:low,medium,high',
             'status'      => 'required|in:todo,in_progress,done',
             'due_date'    => 'nullable|date',
+            'project_id'  => 'nullable|exists:projects,id',
         ]);
 
         $task->update($validated);

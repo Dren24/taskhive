@@ -95,6 +95,33 @@
                         </div>
                     </div>
 
+                    {{-- Project --}}
+                    @if($projects->isNotEmpty())
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+                            </svg>
+                            <span class="text-sm font-semibold text-gray-700">Project</span>
+                        </div>
+                        <div class="relative">
+                            <select name="project_id"
+                                    class="w-full appearance-none border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400">
+                                <option value="">— No Project —</option>
+                                @foreach($projects as $project)
+                                    <option value="{{ $project->id }}"
+                                        {{ (old('project_id', $task->project_id) == $project->id) ? 'selected' : '' }}>
+                                        {{ $project->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <svg class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    @endif
+
                     {{-- Due Date --}}
                     <div>
                         <div class="flex items-center gap-2 mb-2">
