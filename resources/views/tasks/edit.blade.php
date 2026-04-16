@@ -1,20 +1,13 @@
 <x-mobile-layout>
-    <div class="min-h-screen bg-gray-100 flex flex-col justify-end">
-
-        <div class="flex-1"></div>
-
-        <div class="bg-white rounded-t-3xl shadow-2xl"
+    <div class="max-w-2xl">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100"
              x-data="{ priority: '{{ old('priority', $task->priority) }}' }">
 
             {{-- Sheet header --}}
-            <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
-                <h2 class="text-lg font-bold text-gray-900">Edit Task</h2>
+            <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-gray-100">
+                <h2 class="text-base font-bold text-gray-900">Edit Task</h2>
                 <a href="{{ route('tasks.index') }}"
-                   class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </a>
+                   class="text-sm text-gray-400 hover:text-gray-600 transition">Cancel</a>
             </div>
 
             <form action="{{ route('tasks.update', $task) }}" method="POST">
@@ -22,7 +15,7 @@
                 @method('PUT')
                 <input type="hidden" name="priority" :value="priority">
 
-                <div class="px-5 pt-4 pb-6 space-y-5">
+                <div class="px-6 pt-5 pb-6 space-y-5">
 
                     {{-- Task title --}}
                     <div>
@@ -119,11 +112,17 @@
                     </div>
 
                     {{-- Submit --}}
-                    <button type="submit"
-                            class="w-full py-3.5 text-sm font-semibold text-white rounded-2xl shadow-md mt-2"
-                            style="background: linear-gradient(135deg, #7c3aed, #9333ea);">
-                        Save Changes
-                    </button>
+                    <div class="flex items-center justify-end gap-3 pt-2">
+                        <a href="{{ route('tasks.index') }}"
+                           class="px-5 py-2.5 text-sm font-medium text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                                class="px-6 py-2.5 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition"
+                                style="background: linear-gradient(135deg, #7c3aed, #9333ea);">
+                            Save Changes
+                        </button>
+                    </div>
 
                 </div>
             </form>
