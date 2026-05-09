@@ -8,8 +8,7 @@ const STATUSES = ['todo', 'in_progress', 'done'];
 export default function TaskEdit({ task, projects, isAdmin, authId }) {
     const { props } = usePage();
     const flash = props.flash || {};
-    const isOwner = task.user_id === authId;
-    const canEdit = isAdmin || isOwner;
+    const canEdit = isAdmin;
 
     const { data, setData, put, processing, errors } = useForm({
         title: task.title || '',
@@ -17,7 +16,7 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
         priority: task.priority || 'medium',
         status: task.status || 'todo',
         due_date: task.due_date || '',
-        project_id: task.project_id || '',
+        project_id: task.project_id || (projects?.[0]?.id ? String(projects[0].id) : ''),
     });
 
     const [commentBody, setCommentBody] = useState('');
@@ -93,10 +92,10 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
                                 </div>
                                 {projects && projects.length > 0 && (
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project</label>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
                                         <select value={data.project_id} onChange={e => setData('project_id', e.target.value)}
+                                            required
                                             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                            <option value="">No project</option>
                                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                     </div>
@@ -117,9 +116,14 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
                     <h2 className="text-sm font-bold text-gray-900 mb-4">Comments ({task.comments?.length || 0})</h2>
                     <div className="space-y-3 mb-4">
                         {(task.comments || []).map(c => (
-                            <div key={c.id} className="bg-gray-50 rounded-xl p-3">
+                            <div key={c.id} className={`rounded-xl p-3 ${c.user?.is_admin ? 'bg-purple-50 border border-purple-100' : 'bg-gray-50'}`}>
                                 <div className="flex items-center justify-between mb-1">
-                                    <span className="text-xs font-semibold text-gray-700">{c.user?.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-gray-700">{c.user?.name}</span>
+                                        {c.user?.is_admin && (
+                                            <span className="inline-flex px-1.5 py-0.5 text-[10px] font-semibold rounded-md bg-purple-100 text-purple-700">Admin</span>
+                                        )}
+                                    </div>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-gray-400">{c.created_at}</span>
                                         {(isAdmin || c.user?.id === authId) && (

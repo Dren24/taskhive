@@ -17,4 +17,9 @@ class Project extends Model
     {
         return $this->hasMany(Task::class);
     }
+
+    public function comments()
+    {
+        return $this->hasMany(ProjectComment::class)->latest();
+    }
 }

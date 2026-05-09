@@ -4,12 +4,17 @@ import AppLayout from '../../Layouts/AppLayout';
 
 const COLORS = ['#7c3aed', '#9333ea', '#2563eb', '#0891b2', '#059669', '#d97706', '#dc2626', '#db2777'];
 
-export default function ProjectsIndex({ projects, isAdmin }) {
+export default function ProjectsIndex({ projects, users = [], isAdmin }) {
     const [showForm, setShowForm] = useState(false);
-    const { data, setData, post, processing, errors, reset } = useForm({ name: '', color: '#7c3aed' });
+    const { data, setData, post, processing, errors, reset } = useForm({
+        name: '',
+        color: '#7c3aed',
+        user_id: users.length > 0 ? String(users[0].id) : '',
+    });
 
     const submit = (e) => {
         e.preventDefault();
+        if (!data.user_id) return;
         post(route('projects.store'), { onSuccess: () => { reset(); setShowForm(false); } });
     };
 
@@ -41,6 +46,21 @@ export default function ProjectsIndex({ projects, isAdmin }) {
                                     placeholder="Project name"
                                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Assign To *</label>
+                                <select
+                                    value={data.user_id}
+                                    onChange={e => setData('user_id', e.target.value)}
+                                    required
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                >
+                                    {users.length === 0 && <option value="">No users available</option>}
+                                    {users.map(u => (
+                                        <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+                                    ))}
+                                </select>
+                                {errors.user_id && <p className="text-red-500 text-xs mt-1">{errors.user_id}</p>}
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-gray-500 mb-1.5">Color</label>

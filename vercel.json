@@ -1,0 +1,26 @@
+{
+    "version": 2,
+    "installCommand": "composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction && npm ci",
+    "buildCommand": "npm run build",
+    "outputDirectory": "public/build",
+    "builds": [
+        {
+            "src": "public/index.php",
+            "use": "vercel-php@0.7"
+        },
+        {
+            "src": "public/**",
+            "use": "@vercel/static"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/build/(.*)",
+            "dest": "/public/build/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/public/index.php"
+        }
+    ]
+}

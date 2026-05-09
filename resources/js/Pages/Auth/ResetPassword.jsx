@@ -1,4 +1,5 @@
 import { useForm, Head } from '@inertiajs/react';
+import PasswordInput from '../../Components/PasswordInput';
 
 export default function ResetPassword({ token, email }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -25,14 +26,21 @@ export default function ResetPassword({ token, email }) {
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 mb-1.5">New Password</label>
-                            <input type="password" value={data.password} onChange={e => setData('password', e.target.value)} required autoFocus
-                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                            <PasswordInput
+                                value={data.password}
+                                onChange={e => setData('password', e.target.value)}
+                                required
+                                autoFocus
+                            />
                             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                         </div>
                         <div>
                             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Confirm Password</label>
-                            <input type="password" value={data.password_confirmation} onChange={e => setData('password_confirmation', e.target.value)} required
-                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                            <PasswordInput
+                                value={data.password_confirmation}
+                                onChange={e => setData('password_confirmation', e.target.value)}
+                                required
+                            />
                         </div>
                         <button type="submit" disabled={processing}
                             className="w-full py-2.5 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"

@@ -10,7 +10,8 @@ function emptyRow(authId) {
 }
 
 export default function TaskCreate({ projects, users, isAdmin, authId }) {
-    const [rows, setRows] = useState([emptyRow(authId)]);
+    const defaultProjectId = projects?.[0]?.id ? String(projects[0].id) : '';
+    const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: defaultProjectId }]);
 
     const { post, processing, errors } = useForm({});
 
@@ -18,7 +19,7 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
         setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
     };
 
-    const addRow = () => setRows(prev => [...prev, emptyRow(authId)]);
+    const addRow = () => setRows(prev => [...prev, { ...emptyRow(authId), project_id: defaultProjectId }]);
     const removeRow = (i) => setRows(prev => prev.filter((_, idx) => idx !== i));
 
     const submit = (e) => {
@@ -85,10 +86,10 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                     </div>
                                     {projects && projects.length > 0 && (
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project</label>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
                                             <select value={row.project_id} onChange={e => updateRow(i, 'project_id', e.target.value)}
+                                                required
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                                <option value="">No project</option>
                                                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                         </div>

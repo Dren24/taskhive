@@ -18,13 +18,85 @@ function statusLabel(t) {
     return { done: 'Done', in_progress: 'In Progress', todo: 'Todo' }[t.status] || t.status;
 }
 
-export default function TaskIndex({ tasks, isAdmin }) {
+export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
     const { props } = usePage();
     const flash = props.flash || {};
     const [deletingId, setDeletingId] = useState(null);
+    const [reopenTask, setReopenTask] = useState(null);
+    const [reopenComment, setReopenComment] = useState('');
+    const [reopenSubmitting, setReopenSubmitting] = useState(false);
+    const [doneTask, setDoneTask] = useState(null);
+    const [doneProjectId, setDoneProjectId] = useState('');
+    const [doneSubmitting, setDoneSubmitting] = useState(false);
+
+    const nextStatus = (status) => {
+        if (status === 'todo') return 'in_progress';
+        if (status === 'in_progress') return 'done';
+        return 'todo';
+    };
 
     const toggleStatus = (task) => {
-        router.post(route('tasks.toggle', task.id), {}, { preserveScroll: true });
+        const upcoming = nextStatus(task.status);
+
+        if (!isAdmin && upcoming === 'done') {
+            const defaultProject = String(task.project_id || projectOptions?.[0]?.id || '');
+            if (!defaultProject) {
+                alert('No project folder available. Ask admin to assign a project first.');
+                return;
+            }
+
+            setDoneTask(task);
+            setDoneProjectId(defaultProject);
+            return;
+        }
+
+        router.patch(route('tasks.toggle', task.id), {}, { preserveScroll: true });
+    };
+
+    const submitDoneFolder = (e) => {
+        e.preventDefault();
+        if (!doneTask || !doneProjectId) return;
+
+        router.patch(
+            route('tasks.toggle', doneTask.id),
+            { project_id: doneProjectId },
+            {
+                preserveScroll: true,
+                onStart: () => setDoneSubmitting(true),
+                onFinish: () => setDoneSubmitting(false),
+                onSuccess: () => {
+                    setDoneTask(null);
+                    setDoneProjectId('');
+                },
+            }
+        );
+    };
+
+    const askAdminReopen = (task) => {
+        setReopenTask(task);
+        setReopenComment('');
+    };
+
+    const closeReopenModal = () => {
+        if (reopenSubmitting) return;
+        setReopenTask(null);
+        setReopenComment('');
+    };
+
+    const submitReopenRequest = (e) => {
+        e.preventDefault();
+        if (!reopenTask || !reopenComment.trim()) return;
+
+        router.post(
+            route('tasks.request-reopen', reopenTask.id),
+            { comment: reopenComment.trim() },
+            {
+                preserveScroll: true,
+                onStart: () => setReopenSubmitting(true),
+                onFinish: () => setReopenSubmitting(false),
+                onSuccess: () => closeReopenModal(),
+            }
+        );
     };
 
     const deleteTask = (task) => {
@@ -83,8 +155,24 @@ export default function TaskIndex({ tasks, isAdmin }) {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <button onClick={() => toggleStatus(task)}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${task.status === 'done' ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100' : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'}`}>
+                                        {!isAdmin && (task.is_overdue || task.status === 'done') && (
+                                            <button
+                                                onClick={() => askAdminReopen(task)}
+                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                            >
+                                                Ask Admin
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={() => isAdmin || (!task.is_overdue && task.status !== 'done') ? toggleStatus(task) : null}
+                                            disabled={!isAdmin && (task.is_overdue || task.status === 'done')}
+                                            title={!isAdmin && (task.is_overdue || task.status === 'done') ? 'Ask admin to reopen this task' : undefined}
+                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${!isAdmin && (task.is_overdue || task.status === 'done')
+                                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                                : task.status === 'done'
+                                                    ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                                    : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                                }`}>
                                             {task.status === 'done' ? 'Reopen' : 'Mark Done'}
                                         </button>
                                         <Link href={route('tasks.edit', task.id)}
@@ -104,6 +192,91 @@ export default function TaskIndex({ tasks, isAdmin }) {
                     )}
                 </div>
             </div>
+
+            {reopenTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-100 shadow-xl">
+                        <div className="px-5 py-4 border-b border-gray-100">
+                            <h2 className="text-sm font-bold text-gray-900">Ask Admin to Reopen</h2>
+                            <p className="text-xs text-gray-500 mt-1">Task: {reopenTask.title}</p>
+                        </div>
+                        <form onSubmit={submitReopenRequest} className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Comment *</label>
+                                <textarea
+                                    value={reopenComment}
+                                    onChange={(e) => setReopenComment(e.target.value)}
+                                    rows={4}
+                                    placeholder="Explain why this task should be reopened..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={closeReopenModal}
+                                    disabled={reopenSubmitting}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={reopenSubmitting || !reopenComment.trim()}
+                                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                                >
+                                    {reopenSubmitting ? 'Sending...' : 'Send Request'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {doneTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 shadow-xl">
+                        <div className="px-5 py-4 border-b border-gray-100">
+                            <h2 className="text-sm font-bold text-gray-900">Choose Folder for Done Task</h2>
+                            <p className="text-xs text-gray-500 mt-1">Task: {doneTask.title}</p>
+                        </div>
+                        <form onSubmit={submitDoneFolder} className="p-5 space-y-4">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Folder / Project *</label>
+                                <select
+                                    value={doneProjectId}
+                                    onChange={(e) => setDoneProjectId(e.target.value)}
+                                    required
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                >
+                                    {projectOptions.map((p) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { if (!doneSubmitting) { setDoneTask(null); setDoneProjectId(''); } }}
+                                    disabled={doneSubmitting}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={doneSubmitting || !doneProjectId}
+                                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                                >
+                                    {doneSubmitting ? 'Saving...' : 'Mark Done'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AppLayout>
     );
 }

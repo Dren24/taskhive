@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Task;
+use App\Models\TaskNotification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -49,6 +51,59 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn() => $request->session()->get('success'),
                 'error'   => fn() => $request->session()->get('error'),
             ],
+            'notifications' => function () use ($request) {
+                $user = $request->user();
+                if (!$user) return [];
+
+                // Seed overdue notifications (tasks past due, not done, not yet notified)
+                $overdue = $user->tasks()
+                    ->where('status', '!=', 'done')
+                    ->whereNotNull('due_date')
+                    ->where('due_date', '<', now()->startOfDay())
+                    ->whereDoesntHave('notifications', fn($q) => $q->where('type', 'overdue'))
+                    ->get();
+
+                foreach ($overdue as $task) {
+                    TaskNotification::create([
+                        'user_id' => $user->id,
+                        'task_id' => $task->id,
+                        'type'    => 'overdue',
+                    ]);
+                }
+
+                // Seed due-soon notifications (tasks due within 2 days, not done, not yet notified)
+                $dueSoon = $user->tasks()
+                    ->where('status', '!=', 'done')
+                    ->whereBetween('due_date', [now()->startOfDay(), now()->addDays(2)->endOfDay()])
+                    ->whereDoesntHave('notifications', fn($q) => $q->where('type', 'due_soon'))
+                    ->get();
+
+                foreach ($dueSoon as $task) {
+                    TaskNotification::create([
+                        'user_id' => $user->id,
+                        'task_id' => $task->id,
+                        'type'    => 'due_soon',
+                    ]);
+                }
+
+                return TaskNotification::with('task')
+                    ->where('user_id', $user->id)
+                    ->latest()
+                    ->take(20)
+                    ->get()
+                    ->map(fn($n) => [
+                        'id'      => $n->id,
+                        'type'    => $n->type,
+                        'read'    => $n->read_at !== null,
+                        'created_at' => $n->created_at->diffForHumans(),
+                        'task'    => [
+                            'id'       => $n->task->id,
+                            'title'    => $n->task->title,
+                            'due_date' => $n->task->due_date?->format('M j, Y'),
+                        ],
+                    ]);
+            },
         ];
     }
 }
+
