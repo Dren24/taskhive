@@ -6,7 +6,12 @@ if [ ! -f /var/www/.env ]; then
     echo "APP_NAME=${APP_NAME:-TaskHive}" > /var/www/.env
     echo "APP_ENV=${APP_ENV:-production}" >> /var/www/.env
     echo "APP_DEBUG=${APP_DEBUG:-false}" >> /var/www/.env
-    echo "APP_KEY=${APP_KEY}" >> /var/www/.env
+    # Ensure APP_KEY has the required base64: prefix Laravel needs
+    if [[ "${APP_KEY}" != base64:* ]]; then
+        echo "APP_KEY=base64:${APP_KEY}" >> /var/www/.env
+    else
+        echo "APP_KEY=${APP_KEY}" >> /var/www/.env
+    fi
     echo "APP_URL=${APP_URL:-http://localhost}" >> /var/www/.env
     echo "DB_CONNECTION=${DB_CONNECTION:-pgsql}" >> /var/www/.env
     echo "SESSION_DRIVER=${SESSION_DRIVER:-cookie}" >> /var/www/.env
