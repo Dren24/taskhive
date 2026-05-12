@@ -14,7 +14,7 @@ services:
       - key: APP_KEY
         value: base64:HS8fv4rnzhktZAbKIv8chfyS/IKUp2jLC227N45fPuw=
       - key: APP_URL
-        value: https://taskhive.onrender.com
+        value: https://taskhive-779j.onrender.com
       - key: DB_CONNECTION
         value: pgsql
       - key: DATABASE_URL
