@@ -30,13 +30,10 @@ RUN npm ci && npm run build
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
 
 EXPOSE 10000
 
-# At runtime: cache config, run migrations, start server
-# (artisan commands that need env vars must run here, NOT during build)
-CMD php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    php artisan migrate --force && \
-    php artisan serve --host 0.0.0.0 --port 10000
+# startup script creates .env, caches config, migrates, then serves
+CMD ["/start.sh"]
