@@ -28,15 +28,15 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 # Install Node dependencies and build assets
 RUN npm ci && npm run build
 
-# Cache Laravel config/routes/views
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
-
 # Set permissions
 RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
 EXPOSE 10000
 
-# Run migrations then start server
-CMD php artisan migrate --force && php artisan serve --host 0.0.0.0 --port 10000
+# At runtime: cache config, run migrations, start server
+# (artisan commands that need env vars must run here, NOT during build)
+CMD php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
+    php artisan migrate --force && \
+    php artisan serve --host 0.0.0.0 --port 10000
