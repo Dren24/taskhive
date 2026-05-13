@@ -147,7 +147,14 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                             {tasks.map(task => (
                                 <div key={task.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition ${task.is_overdue ? 'bg-rose-50' : ''}`}>
                                     <div className="flex-1 min-w-0">
-                                        <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                                            {task.comments_count > 0 && (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600">
+                                                    💬 {task.comments_count}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex flex-wrap gap-2 mt-1.5">
                                             <span className={priorityBadge(task.priority)}>{task.priority}</span>
                                             <span className={statusBadge(task)}>{statusLabel(task)}</span>
