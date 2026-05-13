@@ -173,7 +173,7 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                     ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
                                                     : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
                                                 }`}>
-                                            {task.status === 'done' ? 'Reopen' : 'Close'}
+                                            {task.status === 'done' || task.is_overdue ? 'Reopen' : 'Close'}
                                         </button>
                                         <Link href={route('tasks.edit', task.id)}
                                             className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">

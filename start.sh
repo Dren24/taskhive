@@ -54,5 +54,11 @@ php artisan view:cache
 echo "==> Running migrations..."
 php artisan migrate --force
 
+echo "==> Closing any overdue tasks..."
+php artisan tasks:close-overdue
+
+echo "==> Starting scheduler in background..."
+(while true; do php artisan schedule:run --no-interaction >> /dev/null 2>&1; sleep 60; done) &
+
 echo "==> Starting server on port ${PORT:-10000}..."
 exec php artisan serve --host 0.0.0.0 --port ${PORT:-10000}
