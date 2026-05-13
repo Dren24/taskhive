@@ -1,4 +1,4 @@
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, Link } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '../Layouts/AppLayout';
 
@@ -131,7 +131,8 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
                         {tasks && tasks.length > 0 ? (
                             <div className="space-y-3">
                                 {tasks.slice(0, 8).map(t => (
-                                    <div key={t.id} className={`flex items-center gap-3 p-3 rounded-xl border ${t.is_overdue ? 'border-rose-200 bg-rose-50' : 'border-gray-100 bg-gray-50'}`}>
+                                    <Link key={t.id} href={route('tasks.edit', t.id)}
+                                        className={`flex items-center gap-3 p-3 rounded-xl border transition hover:shadow-sm hover:border-purple-200 ${t.is_overdue ? 'border-rose-200 bg-rose-50' : 'border-gray-100 bg-gray-50'}`}>
                                         <div className="flex-1 min-w-0">
                                             <p className={`text-sm font-medium truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
                                             <div className="flex gap-2 mt-1">
@@ -140,7 +141,7 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
                                             </div>
                                         </div>
                                         {t.due_date && <span className="text-xs text-gray-400 shrink-0">{t.due_date}</span>}
-                                    </div>
+                                    </Link>
                                 ))}
                             </div>
                         ) : (
