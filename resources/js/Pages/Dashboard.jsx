@@ -153,10 +153,11 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
     const today = new Date();
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
+    const [selectedDay, setSelectedDay] = useState(null);
 
     const cells = buildCalendar(calYear, calMonth);
 
-    // Index calendarTasks by day (assume due_date is "YYYY-MM-DD")
+    // Index calendarTasks by day
     const tasksByDay = {};
     (calendarTasks || []).forEach(t => {
         if (!t.due_date) return;
@@ -169,12 +170,18 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
     });
 
     const prevMonth = () => {
+        setSelectedDay(null);
         if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
         else setCalMonth(m => m - 1);
     };
     const nextMonth = () => {
+        setSelectedDay(null);
         if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
         else setCalMonth(m => m + 1);
+    };
+
+    const handleDaySelect = (day) => {
+        setSelectedDay(prev => prev === day ? null : day);
     };
 
     const statCards = [
@@ -187,6 +194,15 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
     return (
         <AppLayout>
             <Head title="Dashboard" />
+            {/* Popup animation style */}
+            <style>{`
+                @keyframes popupIn {
+                    from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.95); }
+                    to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+                }
+                .animate-popup { animation: popupIn 0.18s ease-out forwards; }
+            `}</style>
+
             <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
                 {/* Header */}
                 <div className="rounded-2xl p-6 text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
@@ -217,27 +233,29 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                             </button>
                         </div>
+
+                        {/* Legend */}
+                        <div className="flex items-center gap-3 mb-3 px-1">
+                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>High</span>
+                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Medium</span>
+                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Low</span>
+                        </div>
+
                         <div className="grid grid-cols-7 text-center mb-2">
                             {DAYS.map(d => <span key={d} className="text-xs font-semibold text-gray-400 py-1">{d}</span>)}
                         </div>
                         <div className="grid grid-cols-7 gap-1">
                             {cells.map((day, i) => {
                                 const isToday = day && calYear === today.getFullYear() && calMonth === today.getMonth() && day === today.getDate();
-                                const hasTasks = day && tasksByDay[day];
                                 return (
-                                    <div key={i} className={`relative aspect-square flex flex-col items-center justify-start pt-1 rounded-lg text-xs ${day ? 'hover:bg-purple-50 cursor-default' : ''} ${isToday ? 'font-bold' : ''}`}>
-                                        {day && (
-                                            <>
-                                                <span className={`w-6 h-6 flex items-center justify-center rounded-full ${isToday ? 'text-white' : 'text-gray-700'}`}
-                                                    style={isToday ? { background: 'linear-gradient(135deg,#7c3aed,#9333ea)' } : {}}>
-                                                    {day}
-                                                </span>
-                                                {hasTasks && (
-                                                    <span className="mt-0.5 w-1.5 h-1.5 rounded-full bg-purple-500 block"></span>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
+                                    <CalendarCell
+                                        key={i}
+                                        day={day}
+                                        isToday={isToday}
+                                        tasks={day ? (tasksByDay[day] || null) : null}
+                                        selected={selectedDay === day}
+                                        onSelect={handleDaySelect}
+                                    />
                                 );
                             })}
                         </div>
@@ -270,4 +288,29 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
             </div>
         </AppLayout>
     );
+}
+
+function priorityBadge(p) {
+    const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
+    return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
+}
+
+function statusBadge(t) {
+    if (t.is_overdue) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-600';
+    const map = { done: 'bg-emerald-100 text-emerald-700', in_progress: 'bg-purple-100 text-purple-700', todo: 'bg-gray-100 text-gray-500' };
+    return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[t.status] || 'bg-gray-100 text-gray-500'}`;
+}
+
+function statusLabel(t) {
+    if (t.is_overdue) return 'Overdue';
+    return { done: 'Done', in_progress: 'In Progress', todo: 'Todo' }[t.status] || t.status;
+}
+
+function buildCalendar(year, month) {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDay; i++) cells.push(null);
+    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+    return cells;
 }
