@@ -42,9 +42,11 @@ class TaskController extends Controller
                 'due_date'    => $t->due_date?->format('Y-m-d'),
                 'project_id'  => $t->project_id,
                 'user'        => $t->relationLoaded('user') ? ['name' => $t->user?->name] : null,
-                'is_overdue'     => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
-                'comments_count' => $t->comments_count,
-                'comments'       => $t->comments->map(fn($c) => [
+                'is_overdue'        => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
+                'comments_count'    => $t->comments_count,
+                'submissions_count' => $t->submissions_count,
+                'max_submissions'   => $t->max_submissions,
+                'comments'          => $t->comments->map(fn($c) => [
                     'id'         => $c->id,
                     'body'       => $c->body,
                     'created_at' => $c->created_at->diffForHumans(),
@@ -80,14 +82,15 @@ class TaskController extends Controller
         abort_if(!$authUser->isAdmin(), 403, 'Only admins can create tasks.');
 
         $rules = [
-            'tasks'               => 'required|array|min:1',
-            'tasks.*.title'       => 'required|string|max:255',
-            'tasks.*.description' => 'nullable|string',
-            'tasks.*.priority'    => 'required|in:low,medium,high',
-            'tasks.*.status'      => 'required|in:todo,in_progress,done',
-            'tasks.*.due_date'    => 'required|date',
-            'tasks.*.project_id'  => 'nullable|exists:projects,id',
-            'tasks.*.assign_to'   => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
+            'tasks'                    => 'required|array|min:1',
+            'tasks.*.title'            => 'required|string|max:255',
+            'tasks.*.description'      => 'nullable|string',
+            'tasks.*.priority'         => 'required|in:low,medium,high',
+            'tasks.*.status'           => 'required|in:todo,in_progress,done',
+            'tasks.*.due_date'         => 'required|date',
+            'tasks.*.project_id'       => 'nullable|exists:projects,id',
+            'tasks.*.assign_to'        => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
+            'tasks.*.max_submissions'  => 'nullable|integer|min:1',
         ];
 
         $request->validate($rules);
@@ -99,12 +102,13 @@ class TaskController extends Controller
                 : $authUser;
 
             $task = $targetUser->tasks()->create([
-                'title'       => $taskData['title'],
-                'description' => $taskData['description'] ?? null,
-                'priority'    => $taskData['priority'],
-                'status'      => $taskData['status'],
-                'due_date'    => $taskData['due_date'] ?: null,
-                'project_id'  => $taskData['project_id'] ?: null,
+                'title'           => $taskData['title'],
+                'description'     => $taskData['description'] ?? null,
+                'priority'        => $taskData['priority'],
+                'status'          => $taskData['status'],
+                'due_date'        => $taskData['due_date'] ?: null,
+                'project_id'      => $taskData['project_id'] ?: null,
+                'max_submissions' => $taskData['max_submissions'] ?? null,
             ]);
 
             // Notify the assigned user (skip if admin assigned to themselves)
@@ -152,14 +156,16 @@ class TaskController extends Controller
         $task->load('comments.user');
         return Inertia::render('Tasks/Edit', [
             'task'     => [
-                'id'          => $task->id,
-                'title'       => $task->title,
-                'description' => $task->description,
-                'priority'    => $task->priority,
-                'status'      => $task->status,
-                'due_date'    => $task->due_date?->format('Y-m-d'),
-                'project_id'  => $task->project_id,
-                'comments'    => $task->comments->map(fn($c) => [
+                'id'              => $task->id,
+                'title'           => $task->title,
+                'description'     => $task->description,
+                'priority'        => $task->priority,
+                'status'          => $task->status,
+                'due_date'        => $task->due_date?->format('Y-m-d'),
+                'project_id'      => $task->project_id,
+                'max_submissions' => $task->max_submissions,
+                'submissions_count' => $task->submissions_count,
+                'comments'        => $task->comments->map(fn($c) => [
                     'id'         => $c->id,
                     'body'       => $c->body,
                     'created_at' => $c->created_at->diffForHumans(),
@@ -185,12 +191,13 @@ class TaskController extends Controller
 
         if ($user->isAdmin()) {
             $validated = $request->validate([
-                'title'       => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'priority'    => 'required|in:low,medium,high',
-                'status'      => 'required|in:todo,in_progress,done',
-                'due_date'    => 'nullable|date',
-                'project_id'  => 'required|exists:projects,id',
+                'title'           => 'required|string|max:255',
+                'description'     => 'nullable|string',
+                'priority'        => 'required|in:low,medium,high',
+                'status'          => 'required|in:todo,in_progress,done',
+                'due_date'        => 'nullable|date',
+                'project_id'      => 'required|exists:projects,id',
+                'max_submissions' => 'nullable|integer|min:1',
             ]);
         } else {
             $validated = $request->validate([
@@ -308,5 +315,32 @@ class TaskController extends Controller
         }
 
         return back()->with('success', 'Reopen request sent to admin.');
+    }
+
+    public function submit(Task $task)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
+
+        // Check submission limit
+        if ($task->max_submissions !== null && $task->submissions_count >= $task->max_submissions) {
+            return back()->with('error', 'Submission limit reached for this task.');
+        }
+
+        $task->increment('submissions_count');
+
+        // Notify admins of submission
+        $admins = User::where('role', 'admin')->get();
+        foreach ($admins as $admin) {
+            TaskNotification::create([
+                'user_id' => $admin->id,
+                'task_id' => $task->id,
+                'type'    => 'reopen_request',
+            ]);
+        }
+
+        return back()->with('success', $task->submissions_count === 1 ? 'Task submitted.' : 'Task resubmitted.');
     }
 }

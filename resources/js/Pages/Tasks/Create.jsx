@@ -6,7 +6,7 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
 
 function emptyRow(authId) {
-    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', project_id: '', assign_to: authId || '' };
+    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', project_id: '', assign_to: authId || '', max_submissions: '' };
 }
 
 export default function TaskCreate({ projects, users, isAdmin, authId }) {
@@ -102,6 +102,17 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                                 <option value="">Select user</option>
                                                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                             </select>
+                                        </div>
+                                    )}
+                                    {isAdmin && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                                                Max Submissions <span className="text-gray-400 font-normal">(optional — leave blank for unlimited)</span>
+                                            </label>
+                                            <input type="number" min="1" value={row.max_submissions}
+                                                onChange={e => updateRow(i, 'max_submissions', e.target.value)}
+                                                placeholder="e.g. 3"
+                                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                                         </div>
                                     )}
                                 </div>

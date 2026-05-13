@@ -54,6 +54,17 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
         return 'todo';
     };
 
+    const [submittingTaskId, setSubmittingTaskId] = useState(null);
+
+    const submitTask = (task) => {
+        if (submittingTaskId) return;
+        setSubmittingTaskId(task.id);
+        router.post(route('tasks.submit', task.id), {}, {
+            preserveScroll: true,
+            onFinish: () => setSubmittingTaskId(null),
+        });
+    };
+
     const toggleStatus = (task) => {
         const upcoming = nextStatus(task.status);
 
@@ -187,26 +198,43 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            {!isAdmin && (task.is_overdue || task.status === 'done') && (
+                                            {/* Submit / Resubmit button for non-admins */}
+                                            {!isAdmin && (() => {
+                                                const limit = task.max_submissions;
+                                                const count = task.submissions_count || 0;
+                                                const atLimit = limit !== null && limit !== undefined && count >= limit;
+                                                const label = count === 0 ? 'Submit' : 'Resubmit';
+                                                return (
+                                                    <button
+                                                        onClick={() => !atLimit && submitTask(task)}
+                                                        disabled={atLimit || submittingTaskId === task.id}
+                                                        title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
+                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${atLimit
+                                                            ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                                            : 'border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                                        }`}
+                                                    >
+                                                        {submittingTaskId === task.id ? '...' : (
+                                                            atLimit ? `Submitted (${count}/${limit})` : (
+                                                                limit ? `${label} (${count}/${limit})` : label
+                                                            )
+                                                        )}
+                                                    </button>
+                                                );
+                                            })()}
+
+                                            {/* Admin close/reopen toggle */}
+                                            {isAdmin && (
                                                 <button
-                                                    onClick={() => askAdminReopen(task)}
-                                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
-                                                >
-                                                    Ask Admin
-                                                </button>
-                                            )}
-                                            <button
-                                                onClick={() => isAdmin || (!task.is_overdue && task.status !== 'done') ? toggleStatus(task) : null}
-                                                disabled={!isAdmin && (task.is_overdue || task.status === 'done')}
-                                                title={!isAdmin && (task.is_overdue || task.status === 'done') ? 'Ask admin to reopen this task' : undefined}
-                                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${!isAdmin && (task.is_overdue || task.status === 'done')
-                                                    ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
-                                                    : task.status === 'done'
+                                                    onClick={() => toggleStatus(task)}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${task.status === 'done'
                                                         ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
                                                         : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
                                                     }`}>
-                                                {task.status === 'done' || task.is_overdue ? 'Reopen' : 'Close'}
-                                            </button>
+                                                    {task.status === 'done' ? 'Reopen' : 'Close'}
+                                                </button>
+                                            )}
+
                                             <Link href={route('tasks.edit', task.id)}
                                                 className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
                                                 Edit

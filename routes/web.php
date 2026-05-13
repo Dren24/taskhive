@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('tasks', TaskController::class);
     Route::patch('tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
     Route::post('tasks/{task}/request-reopen', [TaskController::class, 'requestReopen'])->name('tasks.request-reopen');
+    Route::post('tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('tasks.comments.store');
     Route::delete('tasks/{task}/comments/{comment}', [CommentController::class, 'destroy'])->name('tasks.comments.destroy');
 
