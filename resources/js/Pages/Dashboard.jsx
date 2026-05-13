@@ -289,28 +289,3 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
         </AppLayout>
     );
 }
-
-function priorityBadge(p) {
-    const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
-    return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
-}
-
-function statusBadge(t) {
-    if (t.is_overdue) return 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-600';
-    const map = { done: 'bg-emerald-100 text-emerald-700', in_progress: 'bg-purple-100 text-purple-700', todo: 'bg-gray-100 text-gray-500' };
-    return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[t.status] || 'bg-gray-100 text-gray-500'}`;
-}
-
-function statusLabel(t) {
-    if (t.is_overdue) return 'Overdue';
-    return { done: 'Done', in_progress: 'In Progress', todo: 'Todo' }[t.status] || t.status;
-}
-
-function buildCalendar(year, month) {
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const cells = [];
-    for (let i = 0; i < firstDay; i++) cells.push(null);
-    for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-    return cells;
-}
