@@ -143,12 +143,9 @@ class TaskController extends Controller
         $user = Auth::user();
         abort_if($task->user_id !== Auth::id() && !$user->isAdmin(), 403);
 
-        $isOverdue = $task->status !== 'done'
-            && $task->due_date
-            && $task->due_date->lt(now()->startOfDay());
-        if ($isOverdue && !$user->isAdmin()) {
+        if ($task->status === 'done' && !$user->isAdmin()) {
             return redirect()->route('tasks.index')
-                ->with('error', 'This task is overdue and cannot be edited.');
+                ->with('error', 'This task is closed. Ask an admin to reopen it first.');
         }
 
         $projects = $this->userProjects();
@@ -181,12 +178,9 @@ class TaskController extends Controller
         $user = Auth::user();
         abort_if($task->user_id !== Auth::id() && !$user->isAdmin(), 403);
 
-        $isOverdue = $task->status !== 'done'
-            && $task->due_date
-            && $task->due_date->lt(now()->startOfDay());
-        if ($isOverdue && !$user->isAdmin()) {
+        if ($task->status === 'done' && !$user->isAdmin()) {
             return redirect()->route('tasks.index')
-                ->with('error', 'This task is overdue and cannot be edited.');
+                ->with('error', 'This task is closed. Ask an admin to reopen it first.');
         }
 
         if ($user->isAdmin()) {
@@ -200,7 +194,10 @@ class TaskController extends Controller
             ]);
         } else {
             $validated = $request->validate([
-                'status' => 'required|in:todo,in_progress,done',
+                'title'       => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'priority'    => 'required|in:low,medium,high',
+                'status'      => 'required|in:todo,in_progress,done',
             ]);
         }
 

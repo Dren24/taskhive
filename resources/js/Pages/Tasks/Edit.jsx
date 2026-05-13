@@ -8,7 +8,7 @@ const STATUSES = ['todo', 'in_progress', 'done'];
 export default function TaskEdit({ task, projects, isAdmin, authId }) {
     const { props } = usePage();
     const flash = props.flash || {};
-    const canEdit = isAdmin;
+    const canEdit = isAdmin || task.status !== 'done';
 
     const { data, setData, put, processing, errors } = useForm({
         title: task.title || '',
@@ -85,20 +85,25 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
                                         ))}
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date</label>
-                                    <input type="date" value={data.due_date} onChange={e => setData('due_date', e.target.value)}
-                                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
-                                </div>
-                                {projects && projects.length > 0 && (
-                                    <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
-                                        <select value={data.project_id} onChange={e => setData('project_id', e.target.value)}
-                                            required
-                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                        </select>
-                                    </div>
+                                {/* Due date and project — admin only */}
+                                {isAdmin && (
+                                    <>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date</label>
+                                            <input type="date" value={data.due_date} onChange={e => setData('due_date', e.target.value)}
+                                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                        </div>
+                                        {projects && projects.length > 0 && (
+                                            <div>
+                                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
+                                                <select value={data.project_id} onChange={e => setData('project_id', e.target.value)}
+                                                    required
+                                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
+                                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                </select>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </>
                         )}
