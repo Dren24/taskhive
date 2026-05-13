@@ -21,6 +21,7 @@ class AdminController extends Controller
             ->get();
 
         $tasks = Task::with(['user', 'project'])
+            ->withCount('comments')
             ->latest()
             ->get();
 
@@ -41,14 +42,15 @@ class AdminController extends Controller
                 'tasks_count' => $u->tasks_count,
             ]),
             'tasks' => $tasks->map(fn($t) => [
-                'id'         => $t->id,
-                'title'      => $t->title,
-                'priority'   => $t->priority,
-                'status'     => $t->status,
-                'due_date'   => $t->due_date?->format('Y-m-d'),
-                'is_overdue' => $t->status !== 'done' && $t->due_date && $t->due_date->lt($today),
-                'user'       => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
-                'project'    => $t->project ? ['name' => $t->project->name] : null,
+                'id'             => $t->id,
+                'title'          => $t->title,
+                'priority'       => $t->priority,
+                'status'         => $t->status,
+                'due_date'       => $t->due_date?->format('Y-m-d'),
+                'is_overdue'     => $t->status !== 'done' && $t->due_date && $t->due_date->lt($today),
+                'comments_count' => $t->comments_count,
+                'user'           => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
+                'project'        => $t->project ? ['name' => $t->project->name] : null,
             ]),
             'stats' => $stats,
         ]);

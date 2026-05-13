@@ -97,7 +97,14 @@ export default function AdminIndex({ users, tasks, stats }) {
                                     return (
                                         <div key={t.id} className={`flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 transition ${t.is_overdue ? 'bg-rose-50' : ''}`}>
                                             <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-medium ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className={`text-sm font-medium ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                                                    {t.comments_count > 0 && (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600">
+                                                            💬 {t.comments_count}
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="flex flex-wrap gap-2 mt-1">
                                                     <span className={priorityBadge(t.priority)}>{t.priority}</span>
                                                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${st.cls}`}>{st.label}</span>
