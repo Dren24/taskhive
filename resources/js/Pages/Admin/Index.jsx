@@ -104,6 +104,12 @@ export default function AdminIndex({ users, tasks, stats }) {
                                                             💬 {t.comments_count}
                                                         </span>
                                                     )}
+                                                    {t.submissions_count > 0 && (
+                                                        <span title={`${t.submissions_count}${t.max_submissions ? `/${t.max_submissions}` : ''} submission${t.submissions_count !== 1 ? 's' : ''}`}
+                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600">
+                                                            📤 {t.submissions_count}{t.max_submissions ? `/${t.max_submissions}` : ''}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <div className="flex flex-wrap gap-2 mt-1">
                                                     <span className={priorityBadge(t.priority)}>{t.priority}</span>
