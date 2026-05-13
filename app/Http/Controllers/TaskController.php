@@ -25,8 +25,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with('user')->withCount('comments')->latest()->get()
-            : $user->tasks()->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user'])->withCount('comments')->latest()->get()
+            : $user->tasks()->with('comments.user')->withCount('comments')->latest()->get();
 
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -44,6 +44,12 @@ class TaskController extends Controller
                 'user'        => $t->relationLoaded('user') ? ['name' => $t->user?->name] : null,
                 'is_overdue'     => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
                 'comments_count' => $t->comments_count,
+                'comments'       => $t->comments->map(fn($c) => [
+                    'id'         => $c->id,
+                    'body'       => $c->body,
+                    'created_at' => $c->created_at->diffForHumans(),
+                    'user'       => ['id' => $c->user->id, 'name' => $c->user->name, 'is_admin' => $c->user->isAdmin()],
+                ]),
             ]),
             'projectOptions' => $projectOptions,
             'isAdmin' => $user->isAdmin(),

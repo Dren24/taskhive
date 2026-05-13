@@ -28,6 +28,25 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
     const [doneTask, setDoneTask] = useState(null);
     const [doneProjectId, setDoneProjectId] = useState('');
     const [doneSubmitting, setDoneSubmitting] = useState(false);
+    const [expandedComments, setExpandedComments] = useState({});
+    const [replyText, setReplyText] = useState({});
+    const [replySubmitting, setReplySubmitting] = useState({});
+
+    const toggleComments = (taskId) => {
+        setExpandedComments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+    };
+
+    const submitReply = (e, task) => {
+        e.preventDefault();
+        const body = (replyText[task.id] || '').trim();
+        if (!body) return;
+        setReplySubmitting(prev => ({ ...prev, [task.id]: true }));
+        router.post(route('tasks.comments.store', task.id), { body }, {
+            preserveScroll: true,
+            onFinish: () => setReplySubmitting(prev => ({ ...prev, [task.id]: false })),
+            onSuccess: () => setReplyText(prev => ({ ...prev, [task.id]: '' })),
+        });
+    };
 
     const nextStatus = (status) => {
         if (status === 'todo') return 'in_progress';
@@ -145,54 +164,102 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                     ) : (
                         <div className="divide-y divide-gray-100">
                             {tasks.map(task => (
-                                <div key={task.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition ${task.is_overdue ? 'bg-rose-50' : ''}`}>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
-                                            {task.comments_count > 0 && (
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600">
-                                                    💬 {task.comments_count}
-                                                </span>
+                                <div key={task.id} className={`${task.is_overdue ? 'bg-rose-50' : ''}`}>
+                                    {/* Task row */}
+                                    <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                                                {task.comments_count > 0 && (
+                                                    <button
+                                                        onClick={() => toggleComments(task.id)}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600 hover:bg-purple-200 transition"
+                                                    >
+                                                        💬 {task.comments_count}
+                                                        <span className="ml-0.5">{expandedComments[task.id] ? '▲' : '▼'}</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap gap-2 mt-1.5">
+                                                <span className={priorityBadge(task.priority)}>{task.priority}</span>
+                                                <span className={statusBadge(task)}>{statusLabel(task)}</span>
+                                                {task.due_date && <span className="text-xs text-gray-400">{task.due_date}</span>}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {!isAdmin && (task.is_overdue || task.status === 'done') && (
+                                                <button
+                                                    onClick={() => askAdminReopen(task)}
+                                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                                >
+                                                    Ask Admin
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => isAdmin || (!task.is_overdue && task.status !== 'done') ? toggleStatus(task) : null}
+                                                disabled={!isAdmin && (task.is_overdue || task.status === 'done')}
+                                                title={!isAdmin && (task.is_overdue || task.status === 'done') ? 'Ask admin to reopen this task' : undefined}
+                                                className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${!isAdmin && (task.is_overdue || task.status === 'done')
+                                                    ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                                    : task.status === 'done'
+                                                        ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
+                                                        : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                                    }`}>
+                                                {task.status === 'done' || task.is_overdue ? 'Reopen' : 'Close'}
+                                            </button>
+                                            <Link href={route('tasks.edit', task.id)}
+                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
+                                                Edit
+                                            </Link>
+                                            {isAdmin && (
+                                                <button onClick={() => deleteTask(task)} disabled={deletingId === task.id}
+                                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition disabled:opacity-50">
+                                                    Delete
+                                                </button>
                                             )}
                                         </div>
-                                        <div className="flex flex-wrap gap-2 mt-1.5">
-                                            <span className={priorityBadge(task.priority)}>{task.priority}</span>
-                                            <span className={statusBadge(task)}>{statusLabel(task)}</span>
-                                            {task.due_date && <span className="text-xs text-gray-400">{task.due_date}</span>}
+                                    </div>
+
+                                    {/* Expandable comments panel */}
+                                    {expandedComments[task.id] && (
+                                        <div className="px-5 pb-4 pt-1 bg-gray-50 border-t border-gray-100 space-y-3">
+                                            {/* Comment list */}
+                                            {(task.comments || []).map(c => (
+                                                <div key={c.id} className="flex gap-3">
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${c.user.is_admin ? 'bg-purple-100 text-purple-600' : 'bg-gray-200 text-gray-600'}`}>
+                                                        {c.user.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1 bg-white rounded-xl px-3 py-2 border border-gray-100 shadow-sm">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="text-xs font-semibold text-gray-800">{c.user.name}</span>
+                                                            {c.user.is_admin && <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-600 font-medium">Admin</span>}
+                                                            <span className="text-xs text-gray-400">{c.created_at}</span>
+                                                        </div>
+                                                        <p className="text-sm text-gray-700">{c.body}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {/* Reply form */}
+                                            <form onSubmit={(e) => submitReply(e, task)} className="flex gap-2 pt-1">
+                                                <input
+                                                    type="text"
+                                                    value={replyText[task.id] || ''}
+                                                    onChange={(e) => setReplyText(prev => ({ ...prev, [task.id]: e.target.value }))}
+                                                    placeholder="Write a reply..."
+                                                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    disabled={replySubmitting[task.id] || !(replyText[task.id] || '').trim()}
+                                                    className="px-4 py-2 text-xs font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
+                                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                                                >
+                                                    {replySubmitting[task.id] ? '...' : 'Reply'}
+                                                </button>
+                                            </form>
                                         </div>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {!isAdmin && (task.is_overdue || task.status === 'done') && (
-                                            <button
-                                                onClick={() => askAdminReopen(task)}
-                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
-                                            >
-                                                Ask Admin
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => isAdmin || (!task.is_overdue && task.status !== 'done') ? toggleStatus(task) : null}
-                                            disabled={!isAdmin && (task.is_overdue || task.status === 'done')}
-                                            title={!isAdmin && (task.is_overdue || task.status === 'done') ? 'Ask admin to reopen this task' : undefined}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${!isAdmin && (task.is_overdue || task.status === 'done')
-                                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
-                                                : task.status === 'done'
-                                                    ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
-                                                    : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
-                                                }`}>
-                                            {task.status === 'done' || task.is_overdue ? 'Reopen' : 'Close'}
-                                        </button>
-                                        <Link href={route('tasks.edit', task.id)}
-                                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
-                                            Edit
-                                        </Link>
-                                        {isAdmin && (
-                                            <button onClick={() => deleteTask(task)} disabled={deletingId === task.id}
-                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition disabled:opacity-50">
-                                                Delete
-                                            </button>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
