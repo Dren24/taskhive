@@ -173,7 +173,7 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                     ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
                                                     : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
                                                 }`}>
-                                            {task.status === 'done' ? 'Reopen' : 'Mark Done'}
+                                            {task.status === 'done' ? 'Reopen' : 'Close'}
                                         </button>
                                         <Link href={route('tasks.edit', task.id)}
                                             className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
@@ -270,7 +270,7 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                     className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
                                     style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
                                 >
-                                    {doneSubmitting ? 'Saving...' : 'Mark Done'}
+                                    {doneSubmitting ? 'Saving...' : 'Close Task'}
                                 </button>
                             </div>
                         </form>
