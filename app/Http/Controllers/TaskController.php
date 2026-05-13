@@ -55,10 +55,6 @@ class TaskController extends Controller
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403, 'Only admins can create tasks.');
         $projects = $this->userProjects();
-        if ($projects->isEmpty()) {
-            return redirect()->route('projects.index')
-                ->with('error', 'Create a project first before adding tasks.');
-        }
         $users = $user->isAdmin()
             ? User::where('role', 'user')->orderBy('name')->get()
             : collect();
@@ -83,7 +79,7 @@ class TaskController extends Controller
             'tasks.*.priority'    => 'required|in:low,medium,high',
             'tasks.*.status'      => 'required|in:todo,in_progress,done',
             'tasks.*.due_date'    => 'required|date',
-            'tasks.*.project_id'  => 'required|exists:projects,id',
+            'tasks.*.project_id'  => 'nullable|exists:projects,id',
             'tasks.*.assign_to'   => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
         ];
 
@@ -101,7 +97,7 @@ class TaskController extends Controller
                 'priority'    => $taskData['priority'],
                 'status'      => $taskData['status'],
                 'due_date'    => $taskData['due_date'] ?: null,
-                'project_id'  => $taskData['project_id'],
+                'project_id'  => $taskData['project_id'] ?: null,
             ]);
 
             // Notify the assigned user (skip if admin assigned to themselves)
