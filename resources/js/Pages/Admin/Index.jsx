@@ -21,7 +21,15 @@ export default function AdminIndex({ users, tasks, stats }) {
 
     const deleteTask = (task) => {
         if (!confirm(`Delete "${task.title}"?`)) return;
-        router.delete(route('tasks.destroy', task.id));
+        router.delete(route('admin.tasks.destroy', task.id));
+    };
+
+    const closeTask = (task) => {
+        router.patch(route('admin.tasks.status', task.id), { action: 'close' });
+    };
+
+    const reopenTask = (task) => {
+        router.patch(route('admin.tasks.status', task.id), { action: 'reopen' });
     };
 
     const statCards = [
@@ -103,6 +111,17 @@ export default function AdminIndex({ users, tasks, stats }) {
                                                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
                                                     Edit
                                                 </Link>
+                                                {t.status === 'done' ? (
+                                                    <button onClick={() => reopenTask(t)}
+                                                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 transition">
+                                                        Reopen
+                                                    </button>
+                                                ) : (
+                                                    <button onClick={() => closeTask(t)}
+                                                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition">
+                                                        Close
+                                                    </button>
+                                                )}
                                                 <button onClick={() => deleteTask(t)}
                                                     className="px-3 py-1.5 text-xs font-medium rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
                                                     Delete

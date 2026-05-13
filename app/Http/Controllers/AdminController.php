@@ -62,4 +62,25 @@ class AdminController extends Controller
         $task->delete();
         return back()->with('success', 'Task deleted successfully.');
     }
+
+    public function updateTaskStatus(Task $task)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(!$user->isAdmin(), 403);
+
+        $action = request('action');
+
+        if ($action === 'close') {
+            $task->update(['status' => 'done']);
+            return back()->with('success', 'Task closed.');
+        }
+
+        if ($action === 'reopen') {
+            $task->update(['status' => 'todo']);
+            return back()->with('success', 'Task reopened.');
+        }
+
+        return back()->with('error', 'Invalid action.');
+    }
 }
