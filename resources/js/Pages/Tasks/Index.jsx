@@ -538,8 +538,53 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                         </span>
                                                     </>
                                                 )}
+                                                {/* Leader badge for group tasks */}
+                                                {task.group_id && (
+                                                    <>
+                                                        <span className="text-gray-300 hidden sm:inline">|</span>
+                                                        {task.leader ? (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                                                👑 {task.leader.name}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+                                                                {task.submission_mode === 'voting' ? '🗳️ Voting in progress' : '👑 No leader yet'}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
+
+                                        {/* Voting UI for group tasks in voting mode */}
+                                        {task.group_id && task.submission_mode === 'voting' && !task.leader && !isAdmin && (
+                                            <div className="px-5 pb-4">
+                                                <div className="pt-3 border-t border-gray-100">
+                                                    <p className="text-xs font-semibold text-gray-500 mb-2">🗳️ Vote for task leader</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[task.user].filter(Boolean).map(u => {
+                                                            const voteCount = task.vote_counts?.[u.id] || 0;
+                                                            const isMyVote = task.my_vote === u.id;
+                                                            return (
+                                                                <button
+                                                                    key={u.id}
+                                                                    type="button"
+                                                                    onClick={() => router.post(route('tasks.vote', task.id), { candidate_user_id: u.id }, { preserveScroll: true })}
+                                                                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition
+                                                                        ${isMyVote ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50'}`}
+                                                                >
+                                                                    <span className="w-5 h-5 rounded-full bg-violet-400 text-white flex items-center justify-center text-[9px] font-bold">
+                                                                        {u.name.charAt(0).toUpperCase()}
+                                                                    </span>
+                                                                    {u.name}
+                                                                    {voteCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded-full text-[10px]">{voteCount}</span>}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Right: action button */}
                                         <div className="flex flex-col items-end justify-center gap-2 px-4 py-4 shrink-0 border-l border-gray-50">
@@ -548,18 +593,28 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                 const count = task.submissions_count || 0;
                                                 const atLimit = limit !== null && limit !== undefined && count >= limit;
                                                 const label = count === 0 ? 'Submit' : 'Resubmit';
+                                                // Group task: only the leader may submit
+                                                const isGroupTask = !!task.group_id;
+                                                const isLeader = !isGroupTask || !task.leader || task.leader.id === authId;
+                                                const blocked = isGroupTask && task.leader && !isLeader;
                                                 return (
                                                     <>
-                                                        <button
-                                                            onClick={() => !atLimit && setSubmitModalTask(task)}
-                                                            disabled={atLimit}
-                                                            title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
-                                                            className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition
-                                                                ${atLimit ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'hover:opacity-90'}
-                                                                ${!atLimit && overdue ? 'bg-rose-500' : !atLimit ? 'bg-blue-500' : ''}`}
-                                                        >
-                                                            {atLimit ? `Submitted (${count}/${limit})` : limit ? `${label} (${count}/${limit})` : label}
-                                                        </button>
+                                                        {blocked ? (
+                                                            <span className="px-4 py-2 text-xs font-semibold rounded-xl bg-gray-100 text-gray-400 text-center">
+                                                                👑 Leader submits
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => !atLimit && setSubmitModalTask(task)}
+                                                                disabled={atLimit}
+                                                                title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
+                                                                className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition
+                                                                    ${atLimit ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'hover:opacity-90'}
+                                                                    ${!atLimit && overdue ? 'bg-rose-500' : !atLimit ? 'bg-blue-500' : ''}`}
+                                                            >
+                                                                {atLimit ? `Submitted (${count}/${limit})` : limit ? `${label} (${count}/${limit})` : label}
+                                                            </button>
+                                                        )}
                                                         {!done && (
                                                             <Link href={route('tasks.edit', task.id)}
                                                                 className="px-4 py-2 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition text-center">

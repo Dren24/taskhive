@@ -36,6 +36,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
     Route::post('tasks/{task}/request-reopen', [TaskController::class, 'requestReopen'])->name('tasks.request-reopen');
     Route::post('tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
+    Route::post('tasks/{task}/assign-leader', [TaskController::class, 'assignLeader'])->name('tasks.assign-leader');
+    Route::post('tasks/{task}/vote', [TaskController::class, 'castVote'])->name('tasks.vote');
     Route::get('tasks/{task}/submissions/{submission}/download', [TaskController::class, 'downloadSubmission'])->name('tasks.submissions.download');
     Route::post('tasks/{task}/attachments', [TaskAttachmentController::class, 'store'])->name('tasks.attachments.store');
     Route::get('tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download'])->name('tasks.attachments.download');

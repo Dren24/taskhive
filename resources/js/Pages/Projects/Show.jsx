@@ -42,14 +42,22 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
     const [gtDueTime, setGtDueTime] = useState('');
     const [gtSelectedUsers, setGtSelectedUsers] = useState([]);
     const [gtSubmitting, setGtSubmitting] = useState(false);
+    const [gtSubmissionMode, setGtSubmissionMode] = useState('manual');
+    const [gtLeaderUserId, setGtLeaderUserId] = useState('');
 
     const toggleGtUser = (id) => {
-        setGtSelectedUsers(prev => prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id]);
+        setGtSelectedUsers(prev => {
+            const next = prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id];
+            // If the leader is deselected, clear leader selection
+            if (gtLeaderUserId === id && !next.includes(id)) setGtLeaderUserId('');
+            return next;
+        });
     };
 
     const openGroupTask = () => {
         setGtTitle(''); setGtDescription(''); setGtPriority('medium');
         setGtDueDate(''); setGtDueTime(''); setGtSelectedUsers([]);
+        setGtSubmissionMode('manual'); setGtLeaderUserId('');
         setShowGroupTask(true);
     };
 
@@ -66,7 +74,11 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
             project_id: project.id,
             status: 'todo',
         }));
-        router.post(route('tasks.store.group'), { tasks }, {
+        router.post(route('tasks.store.group'), {
+            tasks,
+            submission_mode: gtSubmissionMode,
+            leader_user_id: gtSubmissionMode === 'manual' && gtLeaderUserId ? gtLeaderUserId : null,
+        }, {
             preserveScroll: true,
             onStart: () => setGtSubmitting(true),
             onFinish: () => setGtSubmitting(false),
@@ -272,11 +284,55 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                                     </span>
                                                 </>
                                             )}
+                                            {/* Leader badge for group tasks */}
+                                            {t.group_id && (
+                                                <>
+                                                    <span className="text-gray-300 hidden sm:inline">|</span>
+                                                    {t.leader ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                                            👑 {t.leader.name}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+                                                            {t.submission_mode === 'voting' ? '🗳️ Voting in progress' : '👑 No leader yet'}
+                                                        </span>
+                                                    )}
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Description if any */}
                                         {t.description && (
                                             <p className="text-sm text-gray-500 leading-relaxed">{t.description}</p>
+                                        )}
+
+                                        {/* Voting UI for group tasks in voting mode */}
+                                        {t.group_id && t.submission_mode === 'voting' && !t.leader && (
+                                            <div className="mt-3 pt-3 border-t border-gray-100">
+                                                <p className="text-xs font-semibold text-gray-500 mb-2">🗳️ Vote for task leader</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {/* We show vote buttons for group members visible via the task user */}
+                                                    {[t.user].filter(Boolean).map(u => {
+                                                        const voteCount = t.vote_counts?.[u.id] || 0;
+                                                        const isMyVote = t.my_vote === u.id;
+                                                        return (
+                                                            <button
+                                                                key={u.id}
+                                                                type="button"
+                                                                onClick={() => router.post(route('tasks.vote', t.id), { candidate_user_id: u.id }, { preserveScroll: true })}
+                                                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition
+                                                                    ${isMyVote ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-gray-200 text-gray-600 hover:border-purple-300 hover:bg-purple-50'}`}
+                                                            >
+                                                                <span className="w-5 h-5 rounded-full bg-violet-400 text-white flex items-center justify-center text-[9px] font-bold">
+                                                                    {u.name.charAt(0).toUpperCase()}
+                                                                </span>
+                                                                {u.name}
+                                                                {voteCount > 0 && <span className="ml-1 px-1.5 py-0.5 bg-purple-200 text-purple-700 rounded-full text-[10px]">{voteCount}</span>}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
 
@@ -522,6 +578,45 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                     </div>
                                 )}
                             </div>
+
+                            {/* Submission Mode */}
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-2">Submission Mode</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { value: 'manual', label: '👑 Manual Assignment', desc: 'Admin picks who submits' },
+                                        { value: 'voting', label: '🗳️ Team Voting', desc: 'Members vote for a leader' },
+                                    ].map(mode => (
+                                        <button
+                                            key={mode.value}
+                                            type="button"
+                                            onClick={() => { setGtSubmissionMode(mode.value); if (mode.value === 'voting') setGtLeaderUserId(''); }}
+                                            className={`flex flex-col items-start p-3 rounded-xl border-2 text-left transition ${gtSubmissionMode === mode.value ? 'border-purple-500 bg-purple-50' : 'border-gray-100 hover:border-gray-200'}`}
+                                        >
+                                            <span className="text-xs font-semibold text-gray-800">{mode.label}</span>
+                                            <span className="text-xs text-gray-400 mt-0.5">{mode.desc}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Leader dropdown — only for manual mode when users are selected */}
+                            {gtSubmissionMode === 'manual' && gtSelectedUsers.length > 0 && (
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Designated Submitter (optional)</label>
+                                    <select
+                                        value={gtLeaderUserId}
+                                        onChange={e => setGtLeaderUserId(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                    >
+                                        <option value="">— Assign later —</option>
+                                        {assignableUsers.filter(u => gtSelectedUsers.includes(u.id)).map(u => (
+                                            <option key={u.id} value={u.id}>{u.name}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-gray-400 mt-1">Only this person can officially submit the task.</p>
+                                </div>
+                            )}
                             <div className="flex justify-end gap-2 pt-2">
                                 <button type="button" onClick={() => { if (!gtSubmitting) setShowGroupTask(false); }} disabled={gtSubmitting}
                                     className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">

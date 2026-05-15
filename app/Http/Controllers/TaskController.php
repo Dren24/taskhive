@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\TaskNotification;
 use App\Models\TaskSubmission;
+use App\Models\TaskVote;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class TaskController extends Controller
@@ -50,8 +52,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user'])->withCount('comments')->latest()->get()
-            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user'])->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->latest()->get()
+            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->latest()->get();
 
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -72,6 +74,11 @@ class TaskController extends Controller
                 'comments_count'    => $t->comments_count,
                 'submissions_count' => $t->submissions_count,
                 'max_submissions'   => $t->max_submissions,
+                'group_id'          => $t->group_id,
+                'submission_mode'   => $t->submission_mode,
+                'leader'            => $t->leader ? ['id' => $t->leader->id, 'name' => $t->leader->name] : null,
+                'vote_counts'       => $t->votes->countBy('candidate_user_id')->all(),
+                'my_vote'           => $t->votes->firstWhere('voter_user_id', $user->id)?->candidate_user_id,
                 'comments'          => $t->comments->map(fn($c) => [
                     'id'         => $c->id,
                     'body'       => $c->body,
@@ -229,7 +236,13 @@ class TaskController extends Controller
             'tasks.*.project_id' => 'required|exists:projects,id',
             'tasks.*.assign_to'  => 'required|exists:users,id',
             'tasks.*.status'     => 'nullable|in:todo,in_progress,done',
+            'submission_mode'    => 'nullable|in:manual,voting',
+            'leader_user_id'     => 'nullable|exists:users,id',
         ]);
+
+        $groupId       = (string) Str::uuid();
+        $submissionMode = $request->input('submission_mode', 'manual');
+        $leaderUserId  = $request->input('leader_user_id');
 
         $projectId = null;
         foreach ($request->input('tasks') as $taskData) {
@@ -237,13 +250,16 @@ class TaskController extends Controller
             $targetUser = User::findOrFail($taskData['assign_to']);
 
             $task = $targetUser->tasks()->create([
-                'title'       => $taskData['title'],
-                'description' => $taskData['description'] ?? null,
-                'priority'    => $taskData['priority'],
-                'status'      => $taskData['status'] ?? 'todo',
-                'due_date'    => $taskData['due_date'] ?: null,
-                'due_time'    => $taskData['due_time'] ?: null,
-                'project_id'  => (int) $taskData['project_id'],
+                'title'           => $taskData['title'],
+                'description'     => $taskData['description'] ?? null,
+                'priority'        => $taskData['priority'],
+                'status'          => $taskData['status'] ?? 'todo',
+                'due_date'        => $taskData['due_date'] ?: null,
+                'due_time'        => $taskData['due_time'] ?: null,
+                'project_id'      => (int) $taskData['project_id'],
+                'group_id'        => $groupId,
+                'submission_mode' => $submissionMode,
+                'leader_user_id'  => $leaderUserId ?: null,
             ]);
 
             $projectId = $task->project_id;
@@ -271,28 +287,46 @@ class TaskController extends Controller
         }
 
         $projects = $this->userProjects();
-        $task->load(['comments.user', 'attachments.user']);
+        $task->load(['comments.user', 'attachments.user', 'leader', 'votes']);
         $users = $user->isAdmin() ? User::orderBy('name')->get(['id','name']) : collect();
+
+        // For group tasks, find all group members (users whose tasks share same group_id)
+        $groupMembers = [];
+        if ($task->group_id) {
+            $groupMembers = Task::where('group_id', $task->group_id)
+                ->with('user:id,name')
+                ->get()
+                ->map(fn($t) => ['id' => $t->user_id, 'name' => $t->user?->name, 'task_id' => $t->id])
+                ->unique('id')
+                ->values()
+                ->all();
+        }
+
         return Inertia::render('Tasks/Edit', [
             'task'     => [
-                'id'              => $task->id,
-                'title'           => $task->title,
-                'description'     => $task->description,
-                'priority'        => $task->priority,
-                'status'          => $task->status,
-                'due_date'        => $task->due_date?->format('Y-m-d'),
-                'due_time'        => $task->due_time,
-                'project_id'      => $task->project_id,
-                'user_id'         => $task->user_id,
-                'max_submissions' => $task->max_submissions,
-                'submissions_count' => $task->submissions_count,
-                'comments'        => $task->comments->map(fn($c) => [
+                'id'               => $task->id,
+                'title'            => $task->title,
+                'description'      => $task->description,
+                'priority'         => $task->priority,
+                'status'           => $task->status,
+                'due_date'         => $task->due_date?->format('Y-m-d'),
+                'due_time'         => $task->due_time,
+                'project_id'       => $task->project_id,
+                'user_id'          => $task->user_id,
+                'max_submissions'  => $task->max_submissions,
+                'submissions_count'=> $task->submissions_count,
+                'group_id'         => $task->group_id,
+                'submission_mode'  => $task->submission_mode ?? 'manual',
+                'leader'           => $task->leader ? ['id' => $task->leader->id, 'name' => $task->leader->name] : null,
+                'vote_counts'      => $task->votes->countBy('candidate_user_id')->all(),
+                'my_vote'          => $task->votes->firstWhere('voter_user_id', $user->id)?->candidate_user_id,
+                'comments'         => $task->comments->map(fn($c) => [
                     'id'         => $c->id,
                     'body'       => $c->body,
                     'created_at' => $c->created_at->diffForHumans(),
                     'user'       => ['id' => $c->user->id, 'name' => $c->user->name, 'is_admin' => $c->user->isAdmin()],
                 ]),
-                'attachments'     => $task->attachments->map(fn($a) => [
+                'attachments'      => $task->attachments->map(fn($a) => [
                     'id'            => $a->id,
                     'original_name' => $a->original_name,
                     'size'          => $a->size,
@@ -302,10 +336,11 @@ class TaskController extends Controller
                     'download_url'  => route('tasks.attachments.download', [$task->id, $a->id]),
                 ]),
             ],
-            'projects' => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-            'users'    => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
-            'isAdmin'  => $user->isAdmin(),
-            'authId'   => Auth::id(),
+            'projects'     => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+            'users'        => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+            'groupMembers' => $groupMembers,
+            'isAdmin'      => $user->isAdmin(),
+            'authId'       => Auth::id(),
         ]);
     }
 
@@ -459,6 +494,11 @@ class TaskController extends Controller
 
         abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
 
+        // For group tasks, only the designated leader may submit
+        if ($task->group_id && $task->leader_user_id && $task->leader_user_id !== $user->id && !$user->isAdmin()) {
+            return back()->with('error', 'Only the designated leader can submit this group task.');
+        }
+
         // Check submission limit
         if ($task->max_submissions !== null && $task->submissions_count >= $task->max_submissions) {
             return back()->with('error', 'Submission limit reached for this task.');
@@ -528,5 +568,77 @@ class TaskController extends Controller
         abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
 
         return response()->download(Storage::disk('public')->path($submission->file_path), $submission->original_name);
+    }
+
+    public function assignLeader(Request $request, Task $task)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        abort_if(!$user->isAdmin(), 403, 'Only admins can assign a leader.');
+
+        $data = $request->validate([
+            'leader_user_id'  => 'nullable|exists:users,id',
+            'submission_mode' => 'nullable|in:manual,voting',
+        ]);
+
+        // Apply to all tasks sharing the same group_id, or just this task
+        $query = $task->group_id
+            ? Task::where('group_id', $task->group_id)
+            : Task::where('id', $task->id);
+
+        $query->update([
+            'leader_user_id'  => $data['leader_user_id'] ?? null,
+            'submission_mode' => $data['submission_mode'] ?? $task->submission_mode,
+        ]);
+
+        return back()->with('success', 'Leader updated successfully.');
+    }
+
+    public function castVote(Request $request, Task $task)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Only group members (users assigned to a task in the same group) can vote
+        abort_unless($task->group_id, 403, 'This task does not support voting.');
+        abort_unless($task->submission_mode === 'voting', 403, 'Voting is not enabled for this task.');
+
+        $isGroupMember = Task::where('group_id', $task->group_id)
+            ->where('user_id', $user->id)->exists();
+        abort_if(!$isGroupMember && !$user->isAdmin(), 403, 'You are not a member of this group task.');
+
+        $data = $request->validate([
+            'candidate_user_id' => 'required|exists:users,id',
+        ]);
+
+        // Upsert: one vote per voter per group — use any task_id in the group for this voter's record
+        // We tie the vote to the task the voter owns within the group
+        $voterTask = Task::where('group_id', $task->group_id)
+            ->where('user_id', $user->id)
+            ->firstOr(fn() => $task);
+
+        TaskVote::updateOrCreate(
+            ['task_id' => $voterTask->id, 'voter_user_id' => $user->id],
+            ['candidate_user_id' => $data['candidate_user_id']]
+        );
+
+        // Count votes across entire group for each candidate
+        $groupTaskIds = Task::where('group_id', $task->group_id)->pluck('id');
+        $totalMembers  = $groupTaskIds->count();
+        $voteCounts    = TaskVote::whereIn('task_id', $groupTaskIds)
+            ->selectRaw('candidate_user_id, count(*) as total')
+            ->groupBy('candidate_user_id')
+            ->pluck('total', 'candidate_user_id');
+
+        // Auto-promote if a candidate gets strict majority
+        $majority = (int) ceil($totalMembers / 2);
+        $winner   = $voteCounts->filter(fn($count) => $count >= $majority)->keys()->first();
+
+        if ($winner) {
+            Task::where('group_id', $task->group_id)
+                ->update(['leader_user_id' => $winner]);
+        }
+
+        return back()->with('success', 'Vote cast successfully.');
     }
 }

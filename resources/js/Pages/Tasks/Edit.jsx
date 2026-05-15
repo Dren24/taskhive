@@ -28,7 +28,7 @@ function FileIcon({ mime }) {
     return <span className="text-lg">📎</span>;
 }
 
-export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
+export default function TaskEdit({ task, projects, users, groupMembers = [], isAdmin, authId }) {
     const { props } = usePage();
     const flash = props.flash || {};
     const canEdit = isAdmin || task.status !== 'done';
@@ -365,6 +365,104 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                             {task.submissions_count || 0} submitted so far
                                         </span>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Admin-only: Leader assignment for group tasks */}
+                            {isAdmin && task.group_id && groupMembers.length > 0 && (
+                                <div className="border border-amber-100 rounded-2xl p-4 bg-amber-50/50 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base">👑</span>
+                                        <label className="text-xs font-bold text-amber-800 uppercase tracking-wide">Group Task Leader</label>
+                                        <span className="text-[10px] text-amber-500 font-medium px-2 py-0.5 bg-amber-100 rounded-full">Group Task</span>
+                                    </div>
+
+                                    {/* Submission mode */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Submission Mode</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { value: 'manual', label: '👑 Manual' },
+                                                { value: 'voting', label: '🗳️ Voting' },
+                                            ].map(m => (
+                                                <button
+                                                    key={m.value}
+                                                    type="button"
+                                                    onClick={() => router.post(route('tasks.assign-leader', task.id), {
+                                                        submission_mode: m.value,
+                                                        leader_user_id: m.value === 'voting' ? null : (task.leader?.id ?? null),
+                                                    }, { preserveScroll: true })}
+                                                    className={`py-2 px-3 rounded-xl border-2 text-xs font-semibold transition
+                                                        ${(task.submission_mode || 'manual') === m.value ? 'border-amber-500 bg-amber-100 text-amber-800' : 'border-gray-100 text-gray-500 hover:border-amber-200'}`}
+                                                >
+                                                    {m.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Leader picker (manual mode only) */}
+                                    {(task.submission_mode || 'manual') === 'manual' && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Designated Submitter</label>
+                                            <div className="space-y-1.5">
+                                                <label className="flex items-center gap-2 cursor-pointer hover:bg-amber-50 rounded-lg px-2 py-1.5">
+                                                    <input
+                                                        type="radio"
+                                                        name="leader"
+                                                        value=""
+                                                        checked={!task.leader}
+                                                        onChange={() => router.post(route('tasks.assign-leader', task.id), { leader_user_id: null, submission_mode: 'manual' }, { preserveScroll: true })}
+                                                        className="accent-amber-500"
+                                                    />
+                                                    <span className="text-sm text-gray-500 italic">— No leader assigned —</span>
+                                                </label>
+                                                {groupMembers.map(m => (
+                                                    <label key={m.id} className="flex items-center gap-2 cursor-pointer hover:bg-amber-50 rounded-lg px-2 py-1.5">
+                                                        <input
+                                                            type="radio"
+                                                            name="leader"
+                                                            value={m.id}
+                                                            checked={task.leader?.id === m.id}
+                                                            onChange={() => router.post(route('tasks.assign-leader', task.id), { leader_user_id: m.id, submission_mode: 'manual' }, { preserveScroll: true })}
+                                                            className="accent-amber-500"
+                                                        />
+                                                        <span className="w-6 h-6 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                                            {m.name.charAt(0).toUpperCase()}
+                                                        </span>
+                                                        <span className="text-sm text-gray-700">{m.name}</span>
+                                                        {task.leader?.id === m.id && <span className="ml-auto text-xs text-amber-600 font-semibold">👑 Leader</span>}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {(task.submission_mode || 'manual') === 'voting' && (
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Current Votes</label>
+                                            <div className="space-y-1">
+                                                {groupMembers.map(m => {
+                                                    const count = task.vote_counts?.[m.id] || 0;
+                                                    return (
+                                                        <div key={m.id} className="flex items-center gap-2 text-sm">
+                                                            <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-[9px] font-bold shrink-0">
+                                                                {m.name.charAt(0).toUpperCase()}
+                                                            </span>
+                                                            <span className="text-gray-700 flex-1">{m.name}</span>
+                                                            <span className="text-xs font-semibold text-amber-700">{count} vote{count !== 1 ? 's' : ''}</span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => router.post(route('tasks.assign-leader', task.id), { leader_user_id: m.id, submission_mode: 'voting' }, { preserveScroll: true })}
+                                                                className="text-xs px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition"
+                                                            >
+                                                                Promote
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
