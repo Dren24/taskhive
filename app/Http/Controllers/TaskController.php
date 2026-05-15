@@ -250,7 +250,7 @@ class TaskController extends Controller
                 'status'          => 'required|in:todo,in_progress,done',
                 'due_date'        => 'nullable|date',
                 'due_time'        => 'nullable|date_format:H:i',
-                'project_id'      => 'required|exists:projects,id',
+                'project_id'      => 'nullable|exists:projects,id',
                 'max_submissions' => 'nullable|integer|min:1',
                 'user_id'         => 'nullable|exists:users,id',
             ]);
@@ -423,7 +423,7 @@ class TaskController extends Controller
             TaskNotification::create([
                 'user_id' => $admin->id,
                 'task_id' => $task->id,
-                'type'    => 'reopen_request',
+                'type'    => 'submission',
             ]);
         }
 
