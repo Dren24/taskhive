@@ -1,5 +1,5 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
 
 function priorityBadge(p) {
@@ -32,40 +32,6 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
     const [expandedComments, setExpandedComments] = useState({});
     const [replyText, setReplyText] = useState({});
     const [replySubmitting, setReplySubmitting] = useState({});
-    const [expandedAttachments, setExpandedAttachments] = useState({});
-    const [uploadingFile, setUploadingFile] = useState({});
-    const fileInputRefs = useRef({});
-
-    const toggleAttachments = (taskId) => {
-        setExpandedAttachments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
-    };
-
-    const uploadFile = (e, task) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setUploadingFile(prev => ({ ...prev, [task.id]: true }));
-        const formData = new FormData();
-        formData.append('file', file);
-        router.post(route('tasks.attachments.store', task.id), formData, {
-            forceFormData: true,
-            preserveScroll: true,
-            onFinish: () => {
-                setUploadingFile(prev => ({ ...prev, [task.id]: false }));
-                if (fileInputRefs.current[task.id]) fileInputRefs.current[task.id].value = '';
-            },
-        });
-    };
-
-    const deleteAttachment = (task, attachmentId) => {
-        if (!confirm('Delete this attachment?')) return;
-        router.delete(route('tasks.attachments.destroy', [task.id, attachmentId]), { preserveScroll: true });
-    };
-
-    const formatSize = (bytes) => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    };
 
     const toggleComments = (taskId) => {
         setExpandedComments(prev => ({ ...prev, [taskId]: !prev[taskId] }));
@@ -225,13 +191,6 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                         <span className="ml-0.5">{expandedComments[task.id] ? '▲' : '▼'}</span>
                                                     </button>
                                                 )}
-                                                <button
-                                                    onClick={() => toggleAttachments(task.id)}
-                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition ${(task.attachments?.length || 0) > 0 ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
-                                                >
-                                                    📎 {task.attachments?.length || 0}
-                                                    <span className="ml-0.5">{expandedAttachments[task.id] ? '▲' : '▼'}</span>
-                                                </button>
                                             </div>
                                             <div className="flex flex-wrap gap-2 mt-1.5">
                                                 <span className={priorityBadge(task.priority)}>{task.priority}</span>
@@ -331,47 +290,9 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                         </div>
                                     )}
 
-                                    {/* Expandable attachments panel */}
-                                    {expandedAttachments[task.id] && (
-                                        <div className="px-5 pb-4 pt-3 bg-blue-50 border-t border-blue-100 space-y-2">
-                                            <p className="text-xs font-semibold text-blue-700 mb-2">Attachments</p>
-                                            {(task.attachments || []).map(a => (
-                                                <div key={a.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-white border border-blue-100 shadow-sm">
-                                                    <span className="text-lg">📄</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-xs font-medium text-gray-800 truncate">{a.original_name}</p>
-                                                        <p className="text-xs text-gray-400">{formatSize(a.size)} · {a.user.name} · {a.created_at}</p>
-                                                    </div>
-                                                    <a href={a.download_url} download
-                                                        className="text-xs font-semibold text-blue-600 hover:text-blue-800 shrink-0">
-                                                        Download
-                                                    </a>
-                                                    {(isAdmin || a.user.id === authId) && (
-                                                        <button onClick={() => deleteAttachment(task, a.id)}
-                                                            className="text-xs text-rose-400 hover:text-rose-600 shrink-0">
-                                                            Delete
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            {(!task.attachments || task.attachments.length === 0) && (
-                                                <p className="text-xs text-blue-400 text-center py-2">No attachments yet.</p>
-                                            )}
-                                            <label className={`flex items-center justify-center gap-2 w-full py-2 text-xs font-semibold rounded-xl border-2 border-dashed cursor-pointer transition
-                                                ${uploadingFile[task.id] ? 'border-gray-200 text-gray-400' : 'border-blue-300 text-blue-600 hover:bg-blue-100'}`}>
-                                                {uploadingFile[task.id] ? 'Uploading…' : '+ Upload File'}
-                                                <input
-                                                    ref={el => fileInputRefs.current[task.id] = el}
-                                                    type="file"
-                                                    className="hidden"
-                                                    onChange={(e) => uploadFile(e, task)}
-                                                    disabled={uploadingFile[task.id]}
-                                                />
-                                            </label>
-                                        </div>
-                                    )}
                                 </div>
                             ))}
+
                         </div>
                     )}
                 </div>
