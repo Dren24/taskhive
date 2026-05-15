@@ -3,7 +3,7 @@ services:
     name: taskhive
     runtime: docker
     plan: free
-    healthCheckPath: /
+    healthCheckPath: /health
     envVars:
       - key: APP_NAME
         value: TaskHive

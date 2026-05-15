@@ -16,6 +16,10 @@ Route::get('/', function () {
     return Inertia::render('Welcome');
 })->name('home');
 
+// Health check endpoint for Render (no auth, no CSRF, returns 200)
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok']);
+})->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class]);
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth'])
     ->name('dashboard');
