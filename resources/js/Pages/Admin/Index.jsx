@@ -308,18 +308,8 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
                     ))}
                 </div>
 
-                {/* User management + audit log */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                        <p className="text-xs text-gray-500 flex items-center gap-2">
-                            <span className="text-base">👤</span>
-                            User account management has moved to{' '}
-                            <a href={route('profile.edit')} className="text-purple-600 font-semibold hover:underline">
-                                Profile → Account Management
-                            </a>.
-                        </p>
-                    </div>
-
+                {/* Audit log */}
+                <div className="grid grid-cols-1 gap-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                         <h2 className="text-sm font-bold text-gray-900 mb-3">Audit Log</h2>
                         {auditLogs.length === 0 ? (
