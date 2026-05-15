@@ -439,6 +439,6 @@ class TaskController extends Controller
         $user = Auth::user();
         abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
 
-        return Storage::disk('public')->download($submission->file_path, $submission->original_name);
+        return response()->download(Storage::disk('public')->path($submission->file_path), $submission->original_name);
     }
 }

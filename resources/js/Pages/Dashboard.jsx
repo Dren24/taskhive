@@ -55,11 +55,10 @@ function buildCalendar(year, month) {
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// Popup that appears near the clicked date cell
+/* ── Task popup for calendar cell ─────────────────────────────────── */
 function TaskPopup({ tasks, onClose, anchorRef }) {
     const popupRef = useRef(null);
 
-    // Close on outside click
     useEffect(() => {
         function handle(e) {
             if (popupRef.current && !popupRef.current.contains(e.target) &&
@@ -76,23 +75,18 @@ function TaskPopup({ tasks, onClose, anchorRef }) {
     }, [onClose, anchorRef]);
 
     return (
-        <div
-            ref={popupRef}
+        <div ref={popupRef}
             className="absolute z-50 w-64 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 animate-popup"
-            style={{ top: '110%', left: '50%', transform: 'translateX(-50%)' }}
-        >
-            {/* Arrow pointer */}
+            style={{ top: '110%', left: '50%', transform: 'translateX(-50%)' }}>
             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-2 overflow-hidden">
                 <div className="w-3 h-3 bg-white border-l border-t border-gray-100 rotate-45 mx-auto mt-1"></div>
             </div>
-
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 px-1">
                 {tasks.length} Task{tasks.length > 1 ? 's' : ''}
             </p>
             <div className="space-y-2 max-h-56 overflow-y-auto">
                 {tasks.map(t => (
-                    <Link key={t.id} href={route('tasks.edit', t.id)}
-                        onClick={onClose}
+                    <Link key={t.id} href={route('tasks.edit', t.id)} onClick={onClose}
                         className="block p-2.5 rounded-xl border border-gray-100 bg-gray-50 hover:bg-purple-50 hover:border-purple-200 transition group">
                         <div className="flex items-start gap-2">
                             <span className="text-base mt-0.5 shrink-0">{statusIcon(t)}</span>
@@ -100,20 +94,12 @@ function TaskPopup({ tasks, onClose, anchorRef }) {
                                 <p className={`text-sm font-semibold truncate group-hover:text-purple-700 ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                                     {t.title}
                                 </p>
-                                {t.description && (
-                                    <p className="text-xs text-gray-400 truncate mt-0.5">{t.description}</p>
-                                )}
-                                {/* Folder name */}
-                                {t.project_name && (
-                                    <p className="text-xs text-gray-400 mt-0.5">📁 {t.project_name}</p>
-                                )}
+                                {t.description && <p className="text-xs text-gray-400 truncate mt-0.5">{t.description}</p>}
+                                {t.project_name && <p className="text-xs text-gray-400 mt-0.5">📁 {t.project_name}</p>}
                                 <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                    <span className={priorityBadge(t.priority)}>
-                                        {priorityIcon(t.priority)} {t.priority}
-                                    </span>
+                                    <span className={priorityBadge(t.priority)}>{priorityIcon(t.priority)} {t.priority}</span>
                                     <span className={statusBadge(t)}>{statusLabel(t)}</span>
                                 </div>
-                                {/* Deadline: "May 15, 2026 – 3:30 PM" */}
                                 {t.due_date && (
                                     <p className={`text-xs font-semibold mt-1.5 ${t.is_overdue ? 'text-rose-500' : 'text-purple-500'}`}>
                                         📅 {formatDate(t.due_date)}{t.due_time ? ` – ${formatTime(t.due_time)}` : ''}
@@ -128,11 +114,10 @@ function TaskPopup({ tasks, onClose, anchorRef }) {
     );
 }
 
-// Individual calendar day cell
+/* ── Calendar day cell ─────────────────────────────────────────────── */
 function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
     const cellRef = useRef(null);
     const hasTasks = tasks && tasks.length > 0;
-    const dotColors = ['bg-purple-500', 'bg-rose-400', 'bg-amber-400'];
 
     return (
         <div ref={cellRef} className="relative">
@@ -144,8 +129,7 @@ function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
             >
                 {day && (
                     <>
-                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs
-                            ${isToday ? 'text-white font-bold' : 'text-gray-700'}`}
+                        <span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs ${isToday ? 'text-white font-bold' : 'text-gray-700'}`}
                             style={isToday ? { background: 'linear-gradient(135deg,#7c3aed,#9333ea)' } : {}}>
                             {day}
                         </span>
@@ -163,8 +147,6 @@ function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
                     </>
                 )}
             </button>
-
-            {/* Popup anchored to this cell */}
             {selected && hasTasks && (
                 <TaskPopup tasks={tasks} onClose={() => onSelect(null)} anchorRef={cellRef} />
             )}
@@ -172,8 +154,8 @@ function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
     );
 }
 
-export default function Dashboard({ tasks, stats, calendarTasks }) {
-    const { auth } = usePage().props;
+/* ── Calendar panel (shared for both admin and regular users) ─────── */
+function CalendarPanel({ calendarTasks }) {
     const today = new Date();
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -181,7 +163,6 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
 
     const cells = buildCalendar(calYear, calMonth);
 
-    // Index calendarTasks by day
     const tasksByDay = {};
     (calendarTasks || []).forEach(t => {
         if (!t.due_date) return;
@@ -203,142 +184,343 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
         if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
         else setCalMonth(m => m + 1);
     };
+    const handleDaySelect = (day) => setSelectedDay(prev => prev === day ? null : day);
 
-    const handleDaySelect = (day) => {
-        setSelectedDay(prev => prev === day ? null : day);
-    };
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+                <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-sm font-bold text-gray-800">{MONTHS[calMonth]} {calYear}</span>
+                <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+            </div>
+            <div className="flex items-center gap-3 mb-3 px-1">
+                <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>High</span>
+                <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Medium</span>
+                <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Low</span>
+            </div>
+            <div className="grid grid-cols-7 text-center mb-2">
+                {DAYS.map(d => <span key={d} className="text-xs font-semibold text-gray-400 py-1">{d}</span>)}
+            </div>
+            <div className="grid grid-cols-7 gap-1">
+                {cells.map((day, i) => {
+                    const isToday = day && calYear === today.getFullYear() && calMonth === today.getMonth() && day === today.getDate();
+                    return (
+                        <CalendarCell key={i} day={day} isToday={isToday}
+                            tasks={day ? (tasksByDay[day] || null) : null}
+                            selected={selectedDay === day}
+                            onSelect={handleDaySelect} />
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
 
-    const statCards = [
-        { label: 'Total Tasks', value: stats?.total ?? 0, icon: '📋', color: 'bg-purple-50 text-purple-600' },
-        { label: 'Todo', value: stats?.todo ?? 0, icon: '⏳', color: 'bg-amber-50 text-amber-600' },
-        { label: 'In Progress', value: stats?.in_progress ?? 0, icon: '🔄', color: 'bg-blue-50 text-blue-600' },
-        { label: 'Done', value: stats?.done ?? 0, icon: '✅', color: 'bg-emerald-50 text-emerald-600' },
+/* ── Recent tasks panel (regular user right column) ────────────────── */
+function RecentTasksPanel({ tasks }) {
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <h2 className="text-sm font-bold text-gray-800 mb-4">Recent Tasks</h2>
+            {tasks && tasks.length > 0 ? (
+                <div className="space-y-2">
+                    {tasks.slice(0, 8).map(t => {
+                        const now = new Date();
+                        const due = t.due_date ? new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00') : null;
+                        const hoursLeft = due ? (due - now) / 36e5 : null;
+                        const dueSoon = !t.is_overdue && hoursLeft !== null && hoursLeft >= 0 && hoursLeft <= 48;
+
+                        return (
+                            <Link key={t.id} href={route('tasks.edit', t.id)}
+                                className={`flex items-center gap-3 p-3 rounded-xl border transition hover:shadow-sm
+                                    ${t.is_overdue ? 'border-rose-200 bg-rose-50 hover:border-rose-300' :
+                                      dueSoon ? 'border-amber-200 bg-amber-50 hover:border-amber-300' :
+                                      t.status === 'done' ? 'border-emerald-100 bg-emerald-50/40 hover:border-emerald-200' :
+                                      'border-gray-100 bg-gray-50 hover:border-purple-200'}`}>
+                                <div className={`w-1 self-stretch rounded-full shrink-0
+                                    ${t.is_overdue ? 'bg-rose-400' : dueSoon ? 'bg-amber-400' : t.status === 'done' ? 'bg-emerald-400' : t.status === 'in_progress' ? 'bg-purple-400' : 'bg-gray-300'}`} />
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-semibold truncate ${t.status === 'done' ? 'line-through text-gray-400' : t.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
+                                        {t.status === 'done' && '✅ '}{t.is_overdue && '⚠️ '}{dueSoon && !t.is_overdue && '⏰ '}{t.title}
+                                    </p>
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
+                                        <span className={priorityBadge(t.priority)}>{t.priority}</span>
+                                        <span className={statusBadge(t)}>{statusLabel(t)}</span>
+                                        {dueSoon && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Due soon</span>}
+                                    </div>
+                                    {t.due_date && (
+                                        <p className={`text-xs mt-1 font-medium ${t.is_overdue ? 'text-rose-500 font-semibold' : dueSoon ? 'text-amber-600 font-semibold' : 'text-gray-400'}`}>
+                                            {formatDate(t.due_date)}{t.due_time ? ` • ${formatTime(t.due_time)}` : ''}
+                                        </p>
+                                    )}
+                                </div>
+                                <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </Link>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-sm text-gray-400 text-center py-8">No tasks yet.</p>
+            )}
+        </div>
+    );
+}
+
+/* ── Admin: activity feed + user intelligence right panel ───────────── */
+const ACTION_STYLES = {
+    created:   { label: 'Created',   cls: 'bg-emerald-100 text-emerald-700' },
+    completed: { label: 'Completed', cls: 'bg-blue-100 text-blue-700' },
+    updated:   { label: 'Updated',   cls: 'bg-purple-100 text-purple-700' },
+};
+
+function Avatar({ name, size = 'w-7 h-7', textSize = 'text-xs' }) {
+    const initials = name ? name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) : '?';
+    return (
+        <div className={`${size} rounded-full flex items-center justify-center font-bold ${textSize} text-purple-700 shrink-0`}
+            style={{ background: 'linear-gradient(135deg,#ede9fe,#ddd6fe)' }}>
+            {initials}
+        </div>
+    );
+}
+
+function ActivityFeed({ feed }) {
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-bold text-gray-800">System Activity</h2>
+                <span className="flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+                    Live
+                </span>
+            </div>
+            {feed && feed.length > 0 ? (
+                <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+                    {feed.map((item, i) => {
+                        const style = ACTION_STYLES[item.type] || ACTION_STYLES.updated;
+                        return (
+                            <div key={i} className="flex items-start gap-3">
+                                <Avatar name={item.user_name} />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-700 leading-snug">
+                                        <span className="font-semibold text-gray-900">{item.user_name}</span>
+                                        {' '}{item.type === 'created' ? 'created' : item.type === 'completed' ? 'completed' : 'updated'}{' '}
+                                        <Link href={route('tasks.edit', item.id)}
+                                            className="font-medium text-purple-700 hover:underline truncate">
+                                            {item.title}
+                                        </Link>
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${style.cls}`}>{style.label}</span>
+                                        <span className="text-[11px] text-gray-400">{item.updated_at}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <p className="text-sm text-gray-400 text-center py-6">No recent activity.</p>
+            )}
+        </div>
+    );
+}
+
+function UserIntelligence({ users }) {
+    const [expanded, setExpanded] = useState(null);
+
+    const toggle = (id) => setExpanded(prev => prev === id ? null : id);
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mt-4">
+            <h2 className="text-sm font-bold text-gray-800 mb-3">User Task Intelligence</h2>
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                    <thead>
+                        <tr className="text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-100">
+                            <th className="text-left pb-2 pl-1">User</th>
+                            <th className="text-center pb-2">Total</th>
+                            <th className="text-center pb-2">Done</th>
+                            <th className="text-center pb-2">Pending</th>
+                            <th className="text-right pb-2 pr-1">Last Active</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users && users.length > 0 ? users.map(u => (
+                            <>
+                                <tr key={u.id}
+                                    onClick={() => toggle(u.id)}
+                                    className={`border-b border-gray-50 cursor-pointer transition group ${expanded === u.id ? 'bg-purple-50' : 'hover:bg-gray-50'}`}>
+                                    <td className="py-2 pl-1">
+                                        <div className="flex items-center gap-2">
+                                            <Avatar name={u.name} size="w-6 h-6" textSize="text-[10px]" />
+                                            <div className="min-w-0">
+                                                <p className="font-semibold text-gray-800 truncate group-hover:text-purple-700 transition">{u.name}</p>
+                                                <p className="text-gray-400 truncate max-w-[100px]">{u.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="py-2 text-center font-bold text-gray-700">{u.total}</td>
+                                    <td className="py-2 text-center font-semibold text-emerald-600">{u.done}</td>
+                                    <td className="py-2 text-center font-semibold text-amber-600">{u.pending}</td>
+                                    <td className="py-2 text-right pr-1 text-gray-400">{u.last_active}</td>
+                                </tr>
+                                {expanded === u.id && (
+                                    <tr key={`${u.id}-exp`} className="bg-purple-50">
+                                        <td colSpan={5} className="px-3 py-3">
+                                            <div className="flex flex-wrap gap-3">
+                                                <div className="flex-1 min-w-[120px] bg-white rounded-xl p-3 border border-purple-100 text-center">
+                                                    <p className="text-lg font-bold text-gray-900">{u.total}</p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">Total Tasks</p>
+                                                    <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+                                                        <div className="h-full rounded-full bg-purple-400" style={{ width: u.total > 0 ? '100%' : '0%' }} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 min-w-[120px] bg-white rounded-xl p-3 border border-emerald-100 text-center">
+                                                    <p className="text-lg font-bold text-emerald-600">{u.done}</p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">Completed</p>
+                                                    <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+                                                        <div className="h-full rounded-full bg-emerald-400"
+                                                            style={{ width: u.total > 0 ? `${Math.round((u.done / u.total) * 100)}%` : '0%' }} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 min-w-[120px] bg-white rounded-xl p-3 border border-amber-100 text-center">
+                                                    <p className="text-lg font-bold text-amber-600">{u.pending}</p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">Pending</p>
+                                                    <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden">
+                                                        <div className="h-full rounded-full bg-amber-400"
+                                                            style={{ width: u.total > 0 ? `${Math.round((u.pending / u.total) * 100)}%` : '0%' }} />
+                                                    </div>
+                                                </div>
+                                                <div className="flex-1 min-w-[120px] bg-white rounded-xl p-3 border border-gray-100 text-center">
+                                                    <p className="text-[11px] font-semibold text-gray-700 mt-1">{u.last_active}</p>
+                                                    <p className="text-[11px] text-gray-400 mt-0.5">Last Active</p>
+                                                    <p className="text-[10px] text-gray-300 mt-1 capitalize">{u.role}</p>
+                                                </div>
+                                            </div>
+                                            <Link href={route('tasks.index')}
+                                                className="inline-flex items-center gap-1 mt-2 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
+                                                View all tasks →
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                )}
+                            </>
+                        )) : (
+                            <tr><td colSpan={5} className="py-6 text-center text-gray-400">No users found.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+/* ── Main dashboard component ─────────────────────────────────────── */
+export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminStats, activityFeed, userIntelligence }) {
+    const { auth } = usePage().props;
+
+    const adminMetrics = [
+        { label: 'Total Users',      value: adminStats?.total_users ?? 0,     icon: '👥', color: 'text-indigo-600',  bg: 'bg-indigo-50' },
+        { label: 'Total Projects',   value: adminStats?.total_projects ?? 0,  icon: '📁', color: 'text-purple-600',  bg: 'bg-purple-50' },
+        { label: 'Completed Tasks',  value: adminStats?.completed_tasks ?? 0, icon: '✅', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { label: 'Overdue Tasks',    value: adminStats?.overdue_tasks ?? 0,   icon: '⚠️', color: 'text-rose-600',    bg: 'bg-rose-50' },
+    ];
+
+    const userMetrics = [
+        { label: 'Total Tasks',  value: stats?.total ?? 0,       icon: '📋', color: 'text-purple-600',  bg: 'bg-purple-50' },
+        { label: 'Todo',         value: stats?.todo ?? 0,         icon: '⏳', color: 'text-amber-600',   bg: 'bg-amber-50' },
+        { label: 'In Progress',  value: stats?.in_progress ?? 0, icon: '🔄', color: 'text-blue-600',    bg: 'bg-blue-50' },
+        { label: 'Done',         value: stats?.done ?? 0,         icon: '✅', color: 'text-emerald-600', bg: 'bg-emerald-50' },
     ];
 
     return (
         <AppLayout>
             <Head title="Dashboard" />
-            {/* Popup animation style */}
             <style>{`
                 @keyframes popupIn {
                     from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.95); }
-                    to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+                    to   { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1); }
                 }
                 .animate-popup { animation: popupIn 0.18s ease-out forwards; }
             `}</style>
 
             <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-                {/* Header */}
-                <div className="rounded-2xl p-6 text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
-                    <h1 className="text-xl font-bold">Welcome back{auth?.user?.name ? `, ${auth.user.name}` : ''}!</h1>
-                    <p className="text-purple-200 text-sm mt-1">Here's your task overview.</p>
-                </div>
 
-                {/* Stat cards */}
+                {/* ── Banner ── */}
+                {isAdmin ? (
+                    <div className="rounded-2xl p-6 text-white relative overflow-hidden"
+                        style={{ background: 'linear-gradient(135deg,#5b21b6,#7c3aed,#9333ea)' }}>
+                        {/* Decorative circles */}
+                        <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{ background: 'white' }} />
+                        <div className="absolute -bottom-10 -right-4 w-28 h-28 rounded-full opacity-10" style={{ background: 'white' }} />
+
+                        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full tracking-wide uppercase">
+                                        🛡️ Admin Overview
+                                    </span>
+                                </div>
+                                <h1 className="text-xl font-bold mt-1">System Dashboard</h1>
+                                <p className="text-purple-200 text-sm mt-0.5">Full visibility across all users, projects, and tasks.</p>
+                            </div>
+                            {/* Quick system-wide summary inline */}
+                            <div className="flex flex-wrap gap-4 sm:gap-6 text-white/90 text-sm">
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-white">{adminStats?.total_tasks ?? 0}</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">All Tasks</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-2xl font-bold text-white">{adminStats?.tasks_today ?? 0}</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">Created Today</p>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-semibold text-emerald-300 mt-1">● Active</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">System Status</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="rounded-2xl p-6 text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                        <h1 className="text-xl font-bold">Welcome back{auth?.user?.name ? `, ${auth.user.name}` : ''}!</h1>
+                        <p className="text-purple-200 text-sm mt-1">Here's your task overview.</p>
+                    </div>
+                )}
+
+                {/* ── Metric cards ── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {statCards.map(c => (
+                    {(isAdmin ? adminMetrics : userMetrics).map(c => (
                         <div key={c.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-1">
-                            <span className={`text-2xl w-10 h-10 rounded-xl flex items-center justify-center ${c.color}`}>{c.icon}</span>
+                            <span className={`text-xl w-10 h-10 rounded-xl flex items-center justify-center ${c.bg} ${c.color}`}>{c.icon}</span>
                             <span className="text-2xl font-bold text-gray-900 mt-2">{c.value}</span>
                             <span className="text-xs text-gray-500">{c.label}</span>
                         </div>
                     ))}
                 </div>
 
+                {/* ── Main 2-col layout ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Calendar */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <span className="text-sm font-bold text-gray-800">{MONTHS[calMonth]} {calYear}</span>
-                            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                            </button>
+                    {/* Left: Calendar (shared) */}
+                    <CalendarPanel calendarTasks={calendarTasks} />
+
+                    {/* Right: admin feed OR user recent tasks */}
+                    {isAdmin ? (
+                        <div className="flex flex-col gap-0">
+                            <ActivityFeed feed={activityFeed} />
+                            <UserIntelligence users={userIntelligence} />
                         </div>
-
-                        {/* Legend */}
-                        <div className="flex items-center gap-3 mb-3 px-1">
-                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-rose-400 inline-block"></span>High</span>
-                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"></span>Medium</span>
-                            <span className="flex items-center gap-1 text-xs text-gray-400"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block"></span>Low</span>
-                        </div>
-
-                        <div className="grid grid-cols-7 text-center mb-2">
-                            {DAYS.map(d => <span key={d} className="text-xs font-semibold text-gray-400 py-1">{d}</span>)}
-                        </div>
-                        <div className="grid grid-cols-7 gap-1">
-                            {cells.map((day, i) => {
-                                const isToday = day && calYear === today.getFullYear() && calMonth === today.getMonth() && day === today.getDate();
-                                return (
-                                    <CalendarCell
-                                        key={i}
-                                        day={day}
-                                        isToday={isToday}
-                                        tasks={day ? (tasksByDay[day] || null) : null}
-                                        selected={selectedDay === day}
-                                        onSelect={handleDaySelect}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Recent tasks */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                        <h2 className="text-sm font-bold text-gray-800 mb-4">Recent Tasks</h2>
-                        {tasks && tasks.length > 0 ? (
-                            <div className="space-y-2">
-                                {tasks.slice(0, 8).map(t => {
-                                    const now = new Date();
-                                    const due = t.due_date ? new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00') : null;
-                                    const hoursLeft = due ? (due - now) / 36e5 : null;
-                                    const dueSoon = !t.is_overdue && hoursLeft !== null && hoursLeft >= 0 && hoursLeft <= 48;
-
-                                    return (
-                                        <Link key={t.id} href={route('tasks.edit', t.id)}
-                                            className={`flex items-center gap-3 p-3 rounded-xl border transition hover:shadow-sm
-                                                ${t.is_overdue ? 'border-rose-200 bg-rose-50 hover:border-rose-300' :
-                                                  dueSoon ? 'border-amber-200 bg-amber-50 hover:border-amber-300' :
-                                                  t.status === 'done' ? 'border-emerald-100 bg-emerald-50/40 hover:border-emerald-200' :
-                                                  'border-gray-100 bg-gray-50 hover:border-purple-200'}`}>
-
-                                            {/* Left color strip */}
-                                            <div className={`w-1 self-stretch rounded-full shrink-0
-                                                ${t.is_overdue ? 'bg-rose-400' : dueSoon ? 'bg-amber-400' : t.status === 'done' ? 'bg-emerald-400' : t.status === 'in_progress' ? 'bg-purple-400' : 'bg-gray-300'}`} />
-
-                                            <div className="flex-1 min-w-0">
-                                                <p className={`text-sm font-semibold truncate ${t.status === 'done' ? 'line-through text-gray-400' : t.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
-                                                    {t.status === 'done' && '✅ '}{t.is_overdue && '⚠️ '}{dueSoon && !t.is_overdue && '⏰ '}{t.title}
-                                                </p>
-                                                <div className="flex flex-wrap gap-1.5 mt-1">
-                                                    <span className={priorityBadge(t.priority)}>{t.priority}</span>
-                                                    <span className={statusBadge(t)}>{statusLabel(t)}</span>
-                                                    {dueSoon && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Due soon</span>}
-                                                </div>
-                                                {/* Combined date + time: "May 15, 2026 • 3:30 PM" */}
-                                                {t.due_date && (
-                                                    <p className={`text-xs mt-1 font-medium ${t.is_overdue ? 'text-rose-500 font-semibold' : dueSoon ? 'text-amber-600 font-semibold' : 'text-gray-400'}`}>
-                                                        {formatDate(t.due_date)}{t.due_time ? ` • ${formatTime(t.due_time)}` : ''}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {/* Right arrow */}
-                                            <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </Link>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-gray-400 text-center py-8">No tasks yet.</p>
-                        )}
-                    </div>
+                    ) : (
+                        <RecentTasksPanel tasks={tasks} />
+                    )}
                 </div>
             </div>
         </AppLayout>
     );
 }
+
