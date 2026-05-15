@@ -183,6 +183,7 @@ class TaskController extends Controller
 
         $projects = $this->userProjects();
         $task->load(['comments.user', 'attachments.user']);
+        $users = $user->isAdmin() ? User::orderBy('name')->get(['id','name']) : collect();
         return Inertia::render('Tasks/Edit', [
             'task'     => [
                 'id'              => $task->id,
@@ -193,6 +194,7 @@ class TaskController extends Controller
                 'due_date'        => $task->due_date?->format('Y-m-d'),
                 'due_time'        => $task->due_time,
                 'project_id'      => $task->project_id,
+                'user_id'         => $task->user_id,
                 'max_submissions' => $task->max_submissions,
                 'submissions_count' => $task->submissions_count,
                 'comments'        => $task->comments->map(fn($c) => [
@@ -212,6 +214,7 @@ class TaskController extends Controller
                 ]),
             ],
             'projects' => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+            'users'    => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
             'isAdmin'  => $user->isAdmin(),
             'authId'   => Auth::id(),
         ]);
@@ -238,6 +241,7 @@ class TaskController extends Controller
                 'due_time'        => 'nullable|date_format:H:i',
                 'project_id'      => 'required|exists:projects,id',
                 'max_submissions' => 'nullable|integer|min:1',
+                'user_id'         => 'nullable|exists:users,id',
             ]);
         } else {
             $validated = $request->validate([
