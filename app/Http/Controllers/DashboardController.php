@@ -276,7 +276,7 @@ class DashboardController extends Controller
                     'status' => $t->status,
                 ]),
                 'last_active' => $u->tasks_max_updated_at
-                    ? $u->tasks_max_updated_at->diffForHumans()
+                    ? \Carbon\Carbon::parse($u->tasks_max_updated_at)->diffForHumans()
                     : 'No activity',
             ])
             ->values()
