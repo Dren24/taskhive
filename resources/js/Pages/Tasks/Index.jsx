@@ -549,16 +549,24 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                 const atLimit = limit !== null && limit !== undefined && count >= limit;
                                                 const label = count === 0 ? 'Submit' : 'Resubmit';
                                                 return (
-                                                    <button
-                                                        onClick={() => !atLimit && setSubmitModalTask(task)}
-                                                        disabled={atLimit}
-                                                        title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
-                                                        className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition
-                                                            ${atLimit ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'hover:opacity-90'}
-                                                            ${!atLimit && overdue ? 'bg-rose-500' : !atLimit ? 'bg-blue-500' : ''}`}
-                                                    >
-                                                        {atLimit ? `Submitted (${count}/${limit})` : limit ? `${label} (${count}/${limit})` : label}
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={() => !atLimit && setSubmitModalTask(task)}
+                                                            disabled={atLimit}
+                                                            title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
+                                                            className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition
+                                                                ${atLimit ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'hover:opacity-90'}
+                                                                ${!atLimit && overdue ? 'bg-rose-500' : !atLimit ? 'bg-blue-500' : ''}`}
+                                                        >
+                                                            {atLimit ? `Submitted (${count}/${limit})` : limit ? `${label} (${count}/${limit})` : label}
+                                                        </button>
+                                                        {!done && (
+                                                            <Link href={route('tasks.edit', task.id)}
+                                                                className="px-4 py-2 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition text-center">
+                                                                ✏️ Edit
+                                                            </Link>
+                                                        )}
+                                                    </>
                                                 );
                                             })()}
                                             {isAdmin && (

@@ -300,7 +300,7 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                                 {done ? '🔓 Reopen' : t.status === 'in_progress' ? '✅ Mark Done' : '▶ Start'}
                                             </button>
                                         )}
-                                        {isAdmin && (
+                                        {(isAdmin || (!done && t.user?.id === authId)) && (
                                             <Link href={route('tasks.edit', t.id)}
                                                 className="px-4 py-2 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition text-center">
                                                 ✏️ Edit
