@@ -1,5 +1,5 @@
 import { Head, useForm, usePage, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
 
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -22,6 +22,8 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
 
     const [commentBody, setCommentBody] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const fileInputRef = useRef(null);
 
     const submit = (e) => { e.preventDefault(); put(route('tasks.update', task.id)); };
 
@@ -39,6 +41,30 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
     const deleteComment = (commentId) => {
         if (!confirm('Delete this comment?')) return;
         router.delete(route('tasks.comments.destroy', [task.id, commentId]), { preserveScroll: true });
+    };
+
+    const uploadFile = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploadingFile(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        router.post(route('tasks.attachments.store', task.id), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ''; },
+        });
+    };
+
+    const deleteAttachment = (attachmentId) => {
+        if (!confirm('Delete this attachment?')) return;
+        router.delete(route('tasks.attachments.destroy', [task.id, attachmentId]), { preserveScroll: true });
+    };
+
+    const formatSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
     return (
@@ -125,6 +151,39 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
                             {processing ? 'Saving…' : 'Save Changes'}
                         </button>
                     </form>
+                </div>
+
+                {/* Attachments */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 className="text-sm font-bold text-gray-900 mb-4">Attachments ({task.attachments?.length || 0})</h2>
+                    <div className="space-y-2 mb-4">
+                        {(task.attachments || []).map(a => (
+                            <div key={a.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-gray-800 truncate">{a.original_name}</p>
+                                    <p className="text-xs text-gray-400">{formatSize(a.size)} · {a.user.name} · {a.created_at}</p>
+                                </div>
+                                <a href={a.download_url} download
+                                    className="text-xs font-semibold text-purple-600 hover:text-purple-800 shrink-0">
+                                    Download
+                                </a>
+                                {(isAdmin || a.user.id === authId) && (
+                                    <button onClick={() => deleteAttachment(a.id)}
+                                        className="text-xs text-rose-400 hover:text-rose-600 shrink-0">
+                                        Delete
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {(!task.attachments || task.attachments.length === 0) && (
+                            <p className="text-sm text-gray-400 text-center py-4">No attachments yet.</p>
+                        )}
+                    </div>
+                    <label className={`flex items-center justify-center gap-2 w-full py-2.5 text-sm font-semibold rounded-xl border-2 border-dashed cursor-pointer transition
+                        ${uploadingFile ? 'border-gray-200 text-gray-400' : 'border-purple-300 text-purple-600 hover:bg-purple-50'}`}>
+                        {uploadingFile ? 'Uploading…' : '+ Upload File'}
+                        <input ref={fileInputRef} type="file" className="hidden" onChange={uploadFile} disabled={uploadingFile} />
+                    </label>
                 </div>
 
                 {/* Comments */}

@@ -26,14 +26,15 @@ class DashboardController extends Controller
         // Flat array of tasks with due dates for the calendar widget
         $calendarTasks = $user->tasks()
             ->whereNotNull('due_date')
-            ->get(['id', 'title', 'due_date', 'status', 'priority'])
+            ->get(['id', 'title', 'description', 'due_date', 'status', 'priority'])
             ->map(fn($t) => [
-                'id'        => $t->id,
-                'title'     => $t->title,
-                'status'    => $t->status,
-                'priority'  => $t->priority,
-                'due_date'  => $t->due_date->format('Y-m-d'),
-                'is_overdue'=> $t->status !== 'done' && $t->due_date->lt($today),
+                'id'         => $t->id,
+                'title'      => $t->title,
+                'description'=> $t->description,
+                'status'     => $t->status,
+                'priority'   => $t->priority,
+                'due_date'   => $t->due_date->format('Y-m-d'),
+                'is_overdue' => $t->status !== 'done' && $t->due_date->lt($today),
             ])
             ->values()
             ->toArray();

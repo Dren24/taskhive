@@ -25,8 +25,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user'])->withCount('comments')->latest()->get()
-            : $user->tasks()->with('comments.user')->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user', 'attachments.user'])->withCount('comments')->latest()->get()
+            : $user->tasks()->with(['comments.user', 'attachments.user'])->withCount('comments')->latest()->get();
 
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -51,6 +51,15 @@ class TaskController extends Controller
                     'body'       => $c->body,
                     'created_at' => $c->created_at->diffForHumans(),
                     'user'       => ['id' => $c->user->id, 'name' => $c->user->name, 'is_admin' => $c->user->isAdmin()],
+                ]),
+                'attachments' => $t->attachments->map(fn($a) => [
+                    'id'            => $a->id,
+                    'original_name' => $a->original_name,
+                    'size'          => $a->size,
+                    'mime_type'     => $a->mime_type,
+                    'created_at'    => $a->created_at->diffForHumans(),
+                    'user'          => ['id' => $a->user->id, 'name' => $a->user->name],
+                    'download_url'  => route('tasks.attachments.download', [$t->id, $a->id]),
                 ]),
             ]),
             'projectOptions' => $projectOptions,
@@ -153,7 +162,7 @@ class TaskController extends Controller
         }
 
         $projects = $this->userProjects();
-        $task->load('comments.user');
+        $task->load(['comments.user', 'attachments.user']);
         return Inertia::render('Tasks/Edit', [
             'task'     => [
                 'id'              => $task->id,
@@ -170,6 +179,15 @@ class TaskController extends Controller
                     'body'       => $c->body,
                     'created_at' => $c->created_at->diffForHumans(),
                     'user'       => ['id' => $c->user->id, 'name' => $c->user->name, 'is_admin' => $c->user->isAdmin()],
+                ]),
+                'attachments'     => $task->attachments->map(fn($a) => [
+                    'id'            => $a->id,
+                    'original_name' => $a->original_name,
+                    'size'          => $a->size,
+                    'mime_type'     => $a->mime_type,
+                    'created_at'    => $a->created_at->diffForHumans(),
+                    'user'          => ['id' => $a->user->id, 'name' => $a->user->name],
+                    'download_url'  => route('tasks.attachments.download', [$task->id, $a->id]),
                 ]),
             ],
             'projects' => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
