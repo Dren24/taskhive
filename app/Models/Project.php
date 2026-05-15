@@ -13,6 +13,12 @@ class Project extends Model
         return $this->belongsTo(User::class);
     }
 
+    // All members of a group project (many-to-many pivot)
+    public function members()
+    {
+        return $this->belongsToMany(User::class, 'project_user');
+    }
+
     public function tasks()
     {
         return $this->hasMany(Task::class);

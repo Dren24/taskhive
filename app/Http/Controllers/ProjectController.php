@@ -17,13 +17,17 @@ class ProjectController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Admins see all projects; regular users see projects they own or have tasks in
+        // Admins see all projects; regular users see projects they are a member of or have tasks in
         if ($user->isAdmin()) {
-            $projects = Project::withCount('tasks')->latest()->get();
+            $projects = Project::withCount('tasks')->with('members')->latest()->get();
         } else {
-            $projects = Project::where('user_id', $user->id)
-                ->orWhereHas('tasks', fn($q) => $q->where('user_id', $user->id))
+            $projects = Project::where(function ($q) use ($user) {
+                    $q->where('user_id', $user->id)
+                      ->orWhereHas('members', fn($q2) => $q2->where('users.id', $user->id))
+                      ->orWhereHas('tasks', fn($q2) => $q2->where('user_id', $user->id));
+                })
                 ->withCount('tasks')
+                ->with('members')
                 ->latest()
                 ->get();
         }
@@ -34,6 +38,7 @@ class ProjectController extends Controller
                 'name'        => $p->name,
                 'color'       => $p->color,
                 'tasks_count' => $p->tasks_count,
+                'members'     => $p->members->map(fn($m) => ['id' => $m->id, 'name' => $m->name]),
             ]),
             'users' => $user->isAdmin()
                 ? User::where('role', 'user')->orderBy('name')->get()->map(fn($u) => [
@@ -51,29 +56,41 @@ class ProjectController extends Controller
         /** @var \App\Models\User $authUser */
         $authUser = Auth::user();
         abort_if(!$authUser->isAdmin(), 403, 'Only admins can create projects.');
+
         $data = $request->validate([
-            'name'    => 'required|string|max:255',
-            'color'   => 'required|string|max:20',
-            'user_id' => 'required|exists:users,id',
+            'name'     => 'required|string|max:255',
+            'color'    => 'required|string|max:20',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'exists:users,id',
         ]);
 
-        $targetUser = User::findOrFail($data['user_id']);
-        $project = $targetUser->projects()->create([
-            'name' => $data['name'],
+        // Primary owner = first selected user (for backward compat)
+        $primaryUserId = $data['user_ids'][0];
+        $primaryUser = User::findOrFail($primaryUserId);
+
+        $project = $primaryUser->projects()->create([
+            'name'  => $data['name'],
             'color' => $data['color'],
         ]);
 
-        Mail::raw(
-            "Hi {$targetUser->name},\n\n"
-            . "A new project has been created for you in TaskHive.\n\n"
-            . "Project: {$project->name}\n"
-            . "Created by: {$authUser->name}\n\n"
-            . "Please log in to TaskHive to view the project.",
-            function ($message) use ($targetUser, $project) {
-                $message->to($targetUser->email)
-                    ->subject("New Project Created: {$project->name}");
-            }
-        );
+        // Attach all selected users to the pivot
+        $project->members()->sync($data['user_ids']);
+
+        // Notify all selected members
+        $members = User::whereIn('id', $data['user_ids'])->get();
+        foreach ($members as $member) {
+            Mail::raw(
+                "Hi {$member->name},\n\n"
+                . "You have been added to a new project in TaskHive.\n\n"
+                . "Project: {$project->name}\n"
+                . "Created by: {$authUser->name}\n\n"
+                . "Please log in to TaskHive to view the project.",
+                function ($message) use ($member, $project) {
+                    $message->to($member->email)
+                        ->subject("New Project: {$project->name}");
+                }
+            );
+        }
 
         return back()->with('success', 'Project created.');
     }
@@ -83,10 +100,11 @@ class ProjectController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
 
-        // Allow admins, project owner, or users who have at least one task in this project
+        // Allow admins, project owner, members, or users who have at least one task in this project
         if (!$user->isAdmin()) {
             abort_unless(
                 $project->user_id === $user->id
+                || $project->members()->where('users.id', $user->id)->exists()
                 || $project->tasks()->where('user_id', $user->id)->exists(),
                 403
             );
