@@ -258,6 +258,8 @@ class TaskController extends Controller
         $count = count($request->input('tasks'));
         return back()->with('success', "Group task created for {$count} user" . ($count !== 1 ? 's' : '') . '.');
     }
+
+    public function edit(Task $task)
     {
         /** @var User $user */
         $user = Auth::user();
