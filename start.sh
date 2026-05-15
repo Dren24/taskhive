@@ -61,4 +61,8 @@ echo "==> Starting scheduler in background..."
 (while true; do php artisan schedule:run --no-interaction >> /dev/null 2>&1; sleep 60; done) &
 
 echo "==> Starting server on port ${PORT:-10000}..."
-exec php artisan serve --host 0.0.0.0 --port ${PORT:-10000}
+exec php \
+    -d upload_max_filesize=50M \
+    -d post_max_size=50M \
+    -d memory_limit=256M \
+    artisan serve --host 0.0.0.0 --port ${PORT:-10000}

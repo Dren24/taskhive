@@ -20,7 +20,7 @@ class TaskAttachmentController extends Controller
         abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
 
         $request->validate([
-            'file' => 'required|file|max:20480', // 20 MB max
+            'file' => 'required|file|max:51200', // 50 MB max
         ]);
 
         $file = $request->file('file');

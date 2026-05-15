@@ -138,7 +138,7 @@ class TaskController extends Controller
             'tasks.*.max_submissions'  => 'nullable|integer|min:1',
             'files'                    => 'nullable|array',
             'files.*'                  => 'nullable|array',
-            'files.*.*'                => 'nullable|file|max:20480',
+            'files.*.*'                => 'sometimes|file|max:51200',
         ];
 
         $request->validate($rules);
@@ -164,10 +164,15 @@ class TaskController extends Controller
             ]);
 
             // Handle file attachments uploaded with this task
-            if ($request->hasFile("files.{$index}")) {
-                foreach ($request->file("files.{$index}") as $file) {
-                    $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
-                    $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
+            $uploadedFiles = $request->file("files.{$index}") ?? [];
+            if (!is_array($uploadedFiles)) {
+                $uploadedFiles = [$uploadedFiles];
+            }
+            foreach ($uploadedFiles as $file) {
+                if (!$file || !$file->isValid()) continue;
+                $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+                $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
+                if ($path) {
                     $task->attachments()->create([
                         'user_id'       => $authUser->id,
                         'original_name' => $file->getClientOriginalName(),
