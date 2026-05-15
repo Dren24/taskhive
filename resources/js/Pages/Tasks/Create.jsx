@@ -6,7 +6,7 @@ const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
 
 function emptyRow(authId) {
-    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', project_id: '', assign_to: authId || '', max_submissions: '' };
+    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', due_time: '', project_id: '', assign_to: authId || '', max_submissions: '' };
 }
 
 export default function TaskCreate({ projects, users, isAdmin, authId }) {
@@ -119,6 +119,11 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date *</label>
                                         <input type="date" value={row.due_date} onChange={e => updateRow(i, 'due_date', e.target.value)}
                                             required
+                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Deadline Time <span className="text-gray-400 font-normal">(optional)</span></label>
+                                        <input type="time" value={row.due_time} onChange={e => updateRow(i, 'due_time', e.target.value)}
                                             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                                     </div>
                                     {projects && projects.length > 0 && (

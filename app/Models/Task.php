@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Task extends Model
 {
-    protected $fillable = ['user_id', 'project_id', 'title', 'description', 'priority', 'status', 'due_date'];
+    protected $fillable = ['user_id', 'project_id', 'title', 'description', 'priority', 'status', 'due_date', 'due_time'];
 
     protected $casts = [
         'due_date' => 'date',

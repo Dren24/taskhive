@@ -18,6 +18,14 @@ function statusLabel(t) {
     return { done: 'Done', in_progress: 'In Progress', todo: 'Todo' }[t.status] || t.status;
 }
 
+function formatTime(time) {
+    if (!time) return null;
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
     const { props } = usePage();
     const flash = props.flash || {};
@@ -195,7 +203,11 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                             <div className="flex flex-wrap gap-2 mt-1.5">
                                                 <span className={priorityBadge(task.priority)}>{task.priority}</span>
                                                 <span className={statusBadge(task)}>{statusLabel(task)}</span>
-                                                {task.due_date && <span className="text-xs text-gray-400">{task.due_date}</span>}
+                                                {task.due_date && (
+                                                    <span className="text-xs text-gray-400">
+                                                        {task.due_date}{task.due_time ? ` · ${formatTime(task.due_time)}` : ''}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">

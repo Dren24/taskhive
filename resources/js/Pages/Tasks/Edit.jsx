@@ -16,6 +16,7 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
         priority: task.priority || 'medium',
         status: task.status || 'todo',
         due_date: task.due_date || '',
+        due_time: task.due_time || '',
         project_id: task.project_id || (projects?.[0]?.id ? String(projects[0].id) : ''),
         max_submissions: task.max_submissions ?? '',
     });
@@ -118,6 +119,11 @@ export default function TaskEdit({ task, projects, isAdmin, authId }) {
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date</label>
                                             <input type="date" value={data.due_date} onChange={e => setData('due_date', e.target.value)}
+                                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Deadline Time <span className="text-gray-400 font-normal">(optional)</span></label>
+                                            <input type="time" value={data.due_time} onChange={e => setData('due_time', e.target.value)}
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                                         </div>
                                         {projects && projects.length > 0 && (
