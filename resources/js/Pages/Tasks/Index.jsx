@@ -458,12 +458,12 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                 <h3 className={`text-base font-bold ${done ? 'line-through text-gray-400' : overdue ? 'text-rose-700' : 'text-gray-900'}`}>
                                                     {done && '✅ '}{overdue && '⚠️ '}{soon && !overdue && '⏰ '}{task.title}
                                                 </h3>
-                                                {task.comments_count > 0 && (
-                                                    <button onClick={() => toggleComments(task.id)}
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600 hover:bg-purple-200 transition">
-                                                        💬 {task.comments_count} {expandedComments[task.id] ? '▲' : '▼'}
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => toggleComments(task.id)}
+                                                    title={task.comments_count > 0 ? 'View / add comments' : 'Add a comment'}
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600 hover:bg-purple-200 transition">
+                                                    💬{task.comments_count > 0 ? ` ${task.comments_count}` : ''} {expandedComments[task.id] ? '▲' : '▼'}
+                                                </button>
                                                 {task.submissions_count > 0 && (
                                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600">
                                                         📤 {task.submissions_count}{task.max_submissions ? `/${task.max_submissions}` : ''}
