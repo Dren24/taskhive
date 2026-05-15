@@ -2,6 +2,14 @@ import { Head, usePage, Link } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import AppLayout from '../Layouts/AppLayout';
 
+function formatTime(time) {
+    if (!time) return null;
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 function priorityBadge(p) {
     const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
     return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
@@ -276,7 +284,11 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
                                                 <span className={statusBadge(t)}>{statusLabel(t)}</span>
                                             </div>
                                         </div>
-                                        {t.due_date && <span className="text-xs text-gray-400 shrink-0">{t.due_date}</span>}
+                                        {t.due_date && (
+                                            <span className="text-xs text-gray-400 shrink-0">
+                                                {t.due_date}{t.due_time ? ` · ${formatTime(t.due_time)}` : ''}
+                                            </span>
+                                        )}
                                     </Link>
                                 ))}
                             </div>
