@@ -24,6 +24,14 @@ function formatDate(dateStr) {
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+function formatTime(time) {
+    if (!time) return null;
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
 function isDueSoon(task) {
     if (!task.due_date || task.is_overdue || task.status === 'done') return false;
     const due = new Date(task.due_date + 'T' + (task.due_time || '23:59') + ':00');
