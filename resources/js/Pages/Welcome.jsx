@@ -116,28 +116,29 @@ export default function Welcome() {
                 {/* ══════════════════════════════════════
                     HERO
                 ══════════════════════════════════════ */}
-                <section className="relative overflow-hidden">
-                    {/* subtle grid bg */}
-                    <div className="absolute inset-0 pointer-events-none"
-                        style={{
-                            backgroundImage: 'radial-gradient(circle at 60% 20%, rgba(139,92,246,0.07) 0%, transparent 55%), radial-gradient(circle at 10% 80%, rgba(168,85,247,0.05) 0%, transparent 45%)',
-                        }} />
+                <section className="relative overflow-hidden"
+                    style={{ background: 'linear-gradient(160deg, #faf5ff 0%, #f5f3ff 30%, #ede9fe 60%, #fff 100%)' }}>
+                    {/* decorative blobs */}
+                    <div className="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full opacity-20 pointer-events-none"
+                        style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }} />
+                    <div className="absolute bottom-0 -left-24 w-[350px] h-[350px] rounded-full opacity-10 pointer-events-none"
+                        style={{ background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)' }} />
 
-                    <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-20 pb-24 lg:pt-28 lg:pb-32 flex flex-col lg:flex-row items-center gap-16 lg:gap-20">
+                    <div className="max-w-7xl mx-auto px-6 lg:px-10 pt-16 pb-20 lg:pt-24 lg:pb-28 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
 
                         {/* Left: copy */}
-                        <div className="flex-1 text-center lg:text-left">
-                            <div className="inline-flex items-center gap-2 bg-purple-50 border border-purple-100 text-purple-700 text-xs font-semibold px-4 py-1.5 rounded-full mb-7 tracking-wide">
+                        <div className="flex-1 text-center lg:text-left z-10">
+                            <div className="inline-flex items-center gap-2 bg-white border border-purple-100 text-purple-700 text-xs font-semibold px-4 py-1.5 rounded-full mb-7 shadow-sm tracking-wide">
                                 <span className="w-1.5 h-1.5 rounded-full bg-purple-500 inline-block animate-pulse" />
                                 Simple. Fast. Beautiful.
                             </div>
 
-                            <h1 className="text-5xl sm:text-6xl xl:text-7xl font-extrabold text-gray-900 leading-[1.08] tracking-tight mb-3">
+                            <h1 className="text-5xl sm:text-6xl xl:text-7xl font-extrabold text-gray-900 leading-[1.06] tracking-tight mb-2">
                                 Manage tasks
                             </h1>
-                            <h2 className="text-5xl sm:text-6xl xl:text-7xl font-extrabold leading-[1.08] tracking-tight mb-7"
+                            <h2 className="text-5xl sm:text-6xl xl:text-7xl font-extrabold leading-[1.06] tracking-tight mb-7"
                                 style={{
-                                    backgroundImage: 'linear-gradient(135deg,#7c3aed,#9333ea,#c026d3)',
+                                    backgroundImage: 'linear-gradient(135deg,#6d28d9,#7c3aed,#9333ea)',
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
                                     backgroundClip: 'text',
@@ -145,22 +146,22 @@ export default function Welcome() {
                                 like a pro.
                             </h2>
 
-                            <p className="text-gray-500 text-lg xl:text-xl leading-relaxed max-w-lg lg:max-w-none mb-10">
-                                TaskHive unifies your team, projects, and deadlines in one beautifully organized workspace — built for modern companies that move fast.
+                            <p className="text-gray-500 text-lg xl:text-xl leading-relaxed max-w-lg mx-auto lg:mx-0 mb-10">
+                                TaskHive gives your team a single, organized workspace to plan, assign, and track every project — from kickoff to completion.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                                 {user ? (
                                     <Link href={route('dashboard')}
-                                        className="px-8 py-3.5 text-sm font-bold text-white rounded-xl shadow-lg hover:shadow-purple-200 hover:scale-105 transition-all duration-200 text-center"
-                                        style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                                        className="px-8 py-3.5 text-sm font-bold text-white rounded-xl shadow-lg hover:shadow-purple-300 hover:scale-[1.03] transition-all duration-200 text-center"
+                                        style={{ background: 'linear-gradient(135deg,#6d28d9,#9333ea)' }}>
                                         Go to Dashboard →
                                     </Link>
                                 ) : (
                                     <>
                                         <Link href={route('register')}
-                                            className="px-8 py-3.5 text-sm font-bold text-white rounded-xl shadow-lg hover:shadow-purple-200 hover:scale-105 transition-all duration-200 text-center"
-                                            style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                                            className="px-8 py-3.5 text-sm font-bold text-white rounded-xl shadow-lg hover:shadow-purple-300 hover:scale-[1.03] transition-all duration-200 text-center"
+                                            style={{ background: 'linear-gradient(135deg,#6d28d9,#9333ea)' }}>
                                             Get Started Free
                                         </Link>
                                         <Link href={route('login')}
@@ -171,39 +172,91 @@ export default function Welcome() {
                                 )}
                             </div>
 
-                            {/* mini social proof */}
-                            <p className="mt-6 text-xs text-gray-400">No credit card required · Free during beta · Cancel anytime</p>
-                        </div>
+                            <p className="mt-5 text-xs text-gray-400">No credit card required · Free during beta · Cancel anytime</p>
 
-                        {/* Right: mock dashboard card */}
-                        <div className="flex-1 w-full max-w-lg lg:max-w-none">
-                            <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
-                                {/* fake top bar */}
-                                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white/40" />
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white/40" />
-                                    <div className="w-2.5 h-2.5 rounded-full bg-white/40" />
-                                    <span className="ml-3 text-white/80 text-xs font-medium">TaskHive Dashboard</span>
-                                </div>
-                                {/* fake content */}
-                                <div className="p-5 space-y-3 bg-gray-50">
-                                    {[
-                                        { label: 'Redesign landing page', tag: 'High', color: 'bg-red-100 text-red-600', done: true },
-                                        { label: 'API integration review', tag: 'Medium', color: 'bg-yellow-100 text-yellow-600', done: false },
-                                        { label: 'Write unit tests', tag: 'Low', color: 'bg-green-100 text-green-600', done: false },
-                                        { label: 'Deploy to production', tag: 'High', color: 'bg-red-100 text-red-600', done: false },
-                                    ].map((t, i) => (
-                                        <div key={i} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm">
-                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${t.done ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}`}>
-                                                {t.done && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
-                                            </div>
-                                            <span className={`flex-1 text-sm font-medium ${t.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{t.label}</span>
-                                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${t.color}`}>{t.tag}</span>
+                            {/* avatar row social proof */}
+                            <div className="mt-8 flex items-center gap-3 justify-center lg:justify-start">
+                                <div className="flex -space-x-2">
+                                    {['#7c3aed','#9333ea','#2563eb','#059669','#dc2626'].map((c,i) => (
+                                        <div key={i} className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold"
+                                            style={{ background: c }}>
+                                            {['A','M','J','S','R'][i]}
                                         </div>
                                     ))}
-                                    <div className="pt-1 flex items-center gap-2 text-xs text-gray-400">
-                                        <span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />
-                                        3 tasks due today · 1 overdue
+                                </div>
+                                <p className="text-xs text-gray-500"><span className="font-semibold text-gray-700">500+ teams</span> already using TaskHive</p>
+                            </div>
+                        </div>
+
+                        {/* Right: mock app UI */}
+                        <div className="flex-1 w-full max-w-[520px] lg:max-w-none z-10">
+                            <div className="bg-white rounded-2xl border border-purple-100 shadow-2xl overflow-hidden">
+
+                                {/* window chrome */}
+                                <div className="flex items-center justify-between px-4 py-3"
+                                    style={{ background: 'linear-gradient(135deg,#6d28d9,#9333ea)' }}>
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
+                                        <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
+                                        <div className="w-2.5 h-2.5 rounded-full bg-white/30" />
+                                    </div>
+                                    <span className="text-white/80 text-xs font-medium">TaskHive — Q2 Marketing Sprint</span>
+                                    <div className="w-16" />
+                                </div>
+
+                                {/* project stats bar */}
+                                <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-gray-50/70">
+                                    {[
+                                        { label: 'Total tasks', value: '24' },
+                                        { label: 'Completed', value: '17' },
+                                        { label: 'Due today', value: '3' },
+                                    ].map((s, i) => (
+                                        <div key={i} className="px-4 py-3 text-center">
+                                            <p className="text-base font-extrabold text-gray-900">{s.value}</p>
+                                            <p className="text-[10px] text-gray-400 mt-0.5">{s.label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* progress bar */}
+                                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/50">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-xs font-semibold text-gray-600">Sprint progress</span>
+                                        <span className="text-xs font-bold text-purple-700">71%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full" style={{ width: '71%', background: 'linear-gradient(90deg,#7c3aed,#9333ea)' }} />
+                                    </div>
+                                </div>
+
+                                {/* task list */}
+                                <div className="p-4 space-y-2.5">
+                                    {[
+                                        { label: 'Update onboarding email sequence',  tag: 'High',   color: 'bg-red-50 text-red-600',    done: true  },
+                                        { label: 'Prepare Q2 client report',          tag: 'High',   color: 'bg-red-50 text-red-600',    done: true  },
+                                        { label: 'Schedule team training workshop',   tag: 'Medium', color: 'bg-amber-50 text-amber-600', done: false },
+                                        { label: 'Review vendor contract renewals',   tag: 'Medium', color: 'bg-amber-50 text-amber-600', done: false },
+                                        { label: 'Update internal knowledge base',    tag: 'Low',    color: 'bg-green-50 text-green-600', done: false },
+                                    ].map((t, i) => (
+                                        <div key={i} className={`flex items-center gap-3 rounded-xl px-4 py-2.5 border transition-all ${t.done ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-white border-gray-100 shadow-sm'}`}>
+                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${t.done ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}`}>
+                                                {t.done && (
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span className={`flex-1 text-xs font-medium truncate ${t.done ? 'line-through text-gray-400' : 'text-gray-700'}`}>{t.label}</span>
+                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${t.color}`}>{t.tag}</span>
+                                        </div>
+                                    ))}
+
+                                    <div className="flex items-center justify-between pt-1 text-[11px] text-gray-400">
+                                        <span className="flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full bg-purple-400 inline-block" />
+                                            3 tasks due today
+                                        </span>
+                                        <span className="text-purple-600 font-semibold cursor-pointer hover:underline">View all →</span>
                                     </div>
                                 </div>
                             </div>
