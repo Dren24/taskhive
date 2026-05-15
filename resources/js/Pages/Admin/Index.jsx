@@ -8,8 +8,7 @@ function formatTime(time) {
     if (!time) return null;
     const [h, m] = time.split(':').map(Number);
     const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
 function formatDate(dateStr) {
@@ -28,11 +27,17 @@ function statusInfo(t) {
     return {
         done:        { label: 'Done',        cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
         in_progress: { label: 'In Progress', cls: 'bg-purple-100 text-purple-700 border-purple-200' },
-        todo:        { label: 'Todo',         cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+        todo:        { label: 'Todo',        cls: 'bg-gray-100 text-gray-500 border-gray-200' },
     }[t.status] || { label: t.status, cls: 'bg-gray-100 text-gray-500 border-gray-200' };
 }
 
-// ─── Confirmation Modal ─────────────────────────────────────────────────────
+function initials(name) { return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(); }
+function avatarColor(name) {
+    const colors = ['bg-purple-500','bg-blue-500','bg-emerald-500','bg-amber-500','bg-rose-500','bg-indigo-500'];
+    return colors[(name || '').charCodeAt(0) % colors.length];
+}
+
+// ─── Confirm Modal ─────────────────────────────────────────────────────────
 
 function ConfirmModal({ title, message, confirmLabel, confirmCls, onConfirm, onCancel }) {
     return (
@@ -42,72 +47,9 @@ function ConfirmModal({ title, message, confirmLabel, confirmCls, onConfirm, onC
                 <h3 className="text-base font-bold text-gray-900 mb-1">{title}</h3>
                 <p className="text-sm text-gray-500 mb-5">{message}</p>
                 <div className="flex gap-3 justify-end">
-                    <button onClick={onCancel}
-                        className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
-                        Cancel
-                    </button>
-                    <button onClick={onConfirm}
-                        className={`px-4 py-2 text-sm font-semibold rounded-xl text-white transition ${confirmCls}`}>
-                        {confirmLabel}
-                    </button>
+                    <button onClick={onCancel} className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                    <button onClick={onConfirm} className={`px-4 py-2 text-sm font-semibold rounded-xl text-white transition ${confirmCls}`}>{confirmLabel}</button>
                 </div>
-            </div>
-        </div>
-    );
-}
-
-function UserDeleteModal({ user, step, verifyText, setVerifyText, onCancel, onContinue, onConfirm }) {
-    if (!user) return null;
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
-            <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 w-full max-w-md animate-modal">
-                {step === 1 ? (
-                    <>
-                        <h3 className="text-base font-bold text-gray-900 mb-1">Delete user account?</h3>
-                        <p className="text-sm text-gray-500 mb-4">
-                            You are about to permanently delete <span className="font-semibold text-gray-800">{user.name}</span>.
-                            This removes all related tasks, submissions, comments, and files.
-                        </p>
-                        <div className="flex gap-3 justify-end">
-                            <button onClick={onCancel}
-                                className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
-                                Cancel
-                            </button>
-                            <button onClick={onContinue}
-                                className="px-4 py-2 text-sm font-semibold rounded-xl text-white bg-rose-500 hover:bg-rose-600 transition">
-                                Continue
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <h3 className="text-base font-bold text-gray-900 mb-1">Second-step verification</h3>
-                        <p className="text-sm text-gray-500 mb-4">
-                            Type <span className="font-semibold text-gray-900">DELETE</span> to confirm removal of
-                            <span className="font-semibold text-gray-800"> {user.email}</span>.
-                        </p>
-                        <input
-                            value={verifyText}
-                            onChange={(e) => setVerifyText(e.target.value)}
-                            placeholder="Type DELETE to confirm"
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-300 transition mb-4"
-                        />
-                        <div className="flex gap-3 justify-end">
-                            <button onClick={onCancel}
-                                className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
-                                Cancel
-                            </button>
-                            <button
-                                onClick={onConfirm}
-                                disabled={verifyText !== 'DELETE'}
-                                className="px-4 py-2 text-sm font-semibold rounded-xl text-white bg-rose-500 hover:bg-rose-600 transition disabled:opacity-50"
-                            >
-                                Delete User
-                            </button>
-                        </div>
-                    </>
-                )}
             </div>
         </div>
     );
@@ -117,16 +59,12 @@ function UserDeleteModal({ user, step, verifyText, setVerifyText, onCancel, onCo
 
 function EditTaskModal({ task, onClose }) {
     const [form, setForm] = useState({
-        title:       task.title || '',
-        description: task.description || '',
-        priority:    task.priority || 'medium',
-        status:      task.status || 'todo',
-        due_date:    task.due_date || '',
-        due_time:    task.due_time || '',
+        title: task.title || '', description: task.description || '',
+        priority: task.priority || 'medium', status: task.status || 'todo',
+        due_date: task.due_date || '', due_time: task.due_time || '',
     });
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState({});
-
     const set = (field, value) => setForm(f => ({ ...f, [field]: value }));
 
     const save = () => {
@@ -142,9 +80,7 @@ function EditTaskModal({ task, onClose }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
             <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-lg animate-modal overflow-hidden">
-                {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between"
-                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                     <div>
                         <h2 className="text-base font-bold text-white">Edit Task</h2>
                         <p className="text-purple-200 text-xs mt-0.5">Assigned to: {task.user?.name || '—'}</p>
@@ -153,28 +89,18 @@ function EditTaskModal({ task, onClose }) {
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
-
-                {/* Body */}
                 <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                    {/* Title */}
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Task Title *</label>
-                        <input value={form.title} onChange={e => set('title', e.target.value)}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition"
-                            placeholder="Task title" />
+                        <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="Task title"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition" />
                         {errors.title && <p className="text-xs text-rose-500 mt-1">{errors.title}</p>}
                     </div>
-
-                    {/* Description */}
                     <div>
                         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Description</label>
-                        <textarea value={form.description} onChange={e => set('description', e.target.value)}
-                            rows={3}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition resize-none"
-                            placeholder="Optional description" />
+                        <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} placeholder="Optional description"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition resize-none" />
                     </div>
-
-                    {/* Deadline Date & Time */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Deadline Date</label>
@@ -187,8 +113,6 @@ function EditTaskModal({ task, onClose }) {
                                 className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition" />
                         </div>
                     </div>
-
-                    {/* Priority & Status */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-semibold text-gray-600 mb-1.5">Priority</label>
@@ -210,15 +134,9 @@ function EditTaskModal({ task, onClose }) {
                         </div>
                     </div>
                 </div>
-
-                {/* Footer */}
                 <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50">
-                    <button onClick={onClose} disabled={saving}
-                        className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 transition">
-                        Cancel
-                    </button>
-                    <button onClick={save} disabled={saving}
-                        className="px-5 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
+                    <button onClick={onClose} disabled={saving} className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-100 transition">Cancel</button>
+                    <button onClick={save} disabled={saving} className="px-5 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
                         style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                         {saving ? 'Saving…' : 'Save Changes'}
                     </button>
@@ -233,207 +151,223 @@ function EditTaskModal({ task, onClose }) {
 export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
     const { props } = usePage();
     const flash = props.flash || {};
+
     const [selectedUser, setSelectedUser] = useState(null);
-    const [editTask, setEditTask] = useState(null);
+    const [editTask, setEditTask]         = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
-    const [closeConfirm, setCloseConfirm] = useState(null);
+    const [closeConfirm, setCloseConfirm]   = useState(null);
+    const [search, setSearch]             = useState('');
 
-    const filtered = selectedUser ? tasks.filter(t => t.user?.id === selectedUser) : tasks;
+    const filtered = (selectedUser ? tasks.filter(t => t.user?.id === selectedUser) : tasks)
+        .filter(t => !search || t.title.toLowerCase().includes(search.toLowerCase()) || (t.user?.name || '').toLowerCase().includes(search.toLowerCase()));
 
-    const confirmDelete = (task) => setDeleteConfirm(task);
-    const doDelete = () => {
-        router.delete(route('admin.tasks.destroy', deleteConfirm.id), { preserveScroll: true });
-        setDeleteConfirm(null);
+    const doDelete = () => { router.delete(route('admin.tasks.destroy', deleteConfirm.id), { preserveScroll: true }); setDeleteConfirm(null); };
+    const doClose  = () => { router.patch(route('admin.tasks.status', closeConfirm.id), { action: 'close' }, { preserveScroll: true }); setCloseConfirm(null); };
+    const reopenTask = (task) => router.patch(route('admin.tasks.status', task.id), { action: 'reopen' }, { preserveScroll: true });
+
+    const exportCSV = () => {
+        const headers = ['Title','Assigned To','Project','Status','Priority','Due Date'];
+        const rows = filtered.map(t => [
+            `"${(t.title||'').replace(/"/g,'""')}"`,
+            `"${(t.user?.name||'').replace(/"/g,'""')}"`,
+            `"${(t.project?.name||'').replace(/"/g,'""')}"`,
+            t.is_overdue ? 'Overdue' : t.status, t.priority, t.due_date||'',
+        ]);
+        const csv = [headers,...rows].map(r=>r.join(',')).join('\n');
+        const blob = new Blob([csv],{type:'text/csv'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download='tasks-export.csv'; a.click();
+        URL.revokeObjectURL(url);
     };
-
-    const confirmClose = (task) => setCloseConfirm(task);
-    const doClose = () => {
-        router.patch(route('admin.tasks.status', closeConfirm.id), { action: 'close' }, { preserveScroll: true });
-        setCloseConfirm(null);
-    };
-
-    const reopenTask = (task) => {
-        router.patch(route('admin.tasks.status', task.id), { action: 'reopen' }, { preserveScroll: true });
-    };
-
-    const startUserDelete = (user) => {};
 
     const statCards = [
-        { label: 'Total Users', value: stats?.users ?? 0, icon: '👥', color: 'bg-purple-50 text-purple-600' },
-        { label: 'Total Tasks', value: stats?.total ?? 0, icon: '📋', color: 'bg-blue-50 text-blue-600' },
-        { label: 'Active',      value: stats?.active ?? 0, icon: '🔄', color: 'bg-amber-50 text-amber-600' },
-        { label: 'Done',        value: stats?.done ?? 0,   icon: '✅', color: 'bg-emerald-50 text-emerald-600' },
-        { label: 'Overdue',     value: stats?.overdue ?? 0, icon: '⚠️', color: 'bg-rose-50 text-rose-600' },
+        { label: 'Total Users', value: stats?.users   ?? 0, icon: '👥', accent: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-100' },
+        { label: 'Total Tasks', value: stats?.total   ?? 0, icon: '📋', accent: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
+        { label: 'Active',      value: stats?.active  ?? 0, icon: '🔄', accent: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-100'  },
+        { label: 'Done',        value: stats?.done    ?? 0, icon: '✅', accent: 'text-emerald-600',bg: 'bg-emerald-50', border: 'border-emerald-100'},
+        { label: 'Overdue',     value: stats?.overdue ?? 0, icon: '⚠️', accent: 'text-rose-600',   bg: 'bg-rose-50',    border: 'border-rose-100'   },
     ];
+
+    const borderAccent = (t) => t.is_overdue ? 'bg-rose-400' : t.status === 'done' ? 'bg-emerald-400' : t.status === 'in_progress' ? 'bg-purple-500' : 'bg-gray-200';
+    const rowBg        = (t) => t.is_overdue ? 'bg-rose-50/50' : t.status === 'done' ? 'bg-emerald-50/30' : '';
 
     return (
         <AppLayout>
             <Head title="Admin" />
 
-            {/* Modal animation */}
             <style>{`
-                @keyframes modalIn {
-                    from { opacity: 0; transform: scale(0.95) translateY(-8px); }
-                    to   { opacity: 1; transform: scale(1)    translateY(0);     }
-                }
-                .animate-modal { animation: modalIn 0.2s ease-out forwards; }
+                @keyframes modalIn { from{opacity:0;transform:scale(.95) translateY(-8px)} to{opacity:1;transform:scale(1) translateY(0)} }
+                .animate-modal { animation: modalIn .2s ease-out forwards; }
+                .audit-scroll::-webkit-scrollbar { display:none; }
+                .audit-scroll { -ms-overflow-style:none; scrollbar-width:none; }
             `}</style>
 
-            <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-                {/* Header */}
-                <div className="rounded-2xl p-6 text-white" style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
-                    <h1 className="text-xl font-bold">Admin Panel</h1>
-                    <p className="text-purple-200 text-sm mt-1">Manage all tasks and users.</p>
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-5">
+
+                {/* Banner */}
+                <div className="rounded-2xl px-7 py-5 flex items-center justify-between"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                    <div>
+                        <h1 className="text-xl font-bold text-white tracking-tight">Admin Panel</h1>
+                        <p className="text-purple-200 text-sm mt-0.5">Manage all tasks and users.</p>
+                    </div>
+                    <span className="text-5xl opacity-20 select-none">⚙️</span>
                 </div>
 
-                {flash.success && (
-                    <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
-                        ✅ {flash.success}
-                    </div>
-                )}
-                {flash.error && (
-                    <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
-                        ⚠️ {flash.error}
-                    </div>
-                )}
+                {flash.success && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm rounded-xl px-4 py-3">✅ {flash.success}</div>}
+                {flash.error   && <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3">⚠️ {flash.error}</div>}
 
-                {/* Stats */}
+                {/* Stats row */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {statCards.map(c => (
-                        <div key={c.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 text-center hover:shadow-md transition">
-                            <span className="text-xl block mb-1">{c.icon}</span>
-                            <span className={`text-2xl font-bold block ${c.color.split(' ')[1]}`}>{c.value}</span>
-                            <span className="text-xs text-gray-500 mt-1 block">{c.label}</span>
+                        <div key={c.label} className={`bg-white rounded-2xl border ${c.border} shadow-sm p-4 text-center hover:shadow-md transition group`}>
+                            <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center text-xl mx-auto mb-2 group-hover:scale-110 transition-transform`}>{c.icon}</div>
+                            <span className={`text-2xl font-extrabold block ${c.accent}`}>{c.value}</span>
+                            <span className="text-[11px] text-gray-400 mt-0.5 block font-medium">{c.label}</span>
                         </div>
                     ))}
                 </div>
 
-                {/* Audit log */}
-                <div className="grid grid-cols-1 gap-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                        <h2 className="text-sm font-bold text-gray-900 mb-3">Audit Log</h2>
-                        {auditLogs.length === 0 ? (
-                            <p className="text-sm text-gray-400 text-center py-8">No audit events yet.</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {auditLogs.map(log => (
-                                    <div key={log.id} className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-bold">
-                                            🛡️
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs text-gray-700">
-                                                <span className="font-semibold text-gray-900">{log.actor}</span>{' '}
-                                                <span className="text-gray-500">deleted</span>{' '}
-                                                <span className="font-semibold text-gray-800">{log.target_name}</span>
-                                            </p>
-                                            <p className="text-[11px] text-gray-400">{log.target_email} · {log.created_at}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {/* Compact Audit Log bar */}
+                <div className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3 overflow-hidden">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-sm">🛡️</span>
+                        <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Audit Log</span>
                     </div>
+                    <div className="w-px h-4 bg-gray-200 shrink-0" />
+                    {auditLogs.length === 0 ? (
+                        <span className="text-xs text-gray-400">No audit events yet.</span>
+                    ) : (
+                        <div className="flex gap-5 overflow-x-auto audit-scroll flex-1 pb-px">
+                            {auditLogs.map(log => (
+                                <div key={log.id} className="flex items-center gap-1.5 shrink-0 text-xs text-gray-600 whitespace-nowrap">
+                                    <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${avatarColor(log.actor)} text-white`}>
+                                        {initials(log.actor)}
+                                    </span>
+                                    <span><span className="font-semibold text-gray-800">{log.actor}</span> deleted <span className="font-semibold text-gray-700">{log.target_name}</span></span>
+                                    <span className="text-gray-300">·</span>
+                                    <span className="text-gray-400">{log.created_at}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
-                <div className="flex gap-6">
-                    {/* User sidebar */}
-                    <div className="w-48 shrink-0 space-y-1">
-                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 px-1">Filter by User</p>
-                        <button onClick={() => setSelectedUser(null)}
-                            className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${selectedUser === null ? 'bg-purple-100 text-purple-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
-                            All Users
-                            <span className="ml-1 text-xs opacity-60">({tasks.length})</span>
-                        </button>
-                        {(users || []).map(u => (
-                            <button key={u.id} onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)}
-                                className={`w-full text-left px-3 py-2 rounded-xl text-sm transition ${selectedUser === u.id ? 'bg-purple-100 text-purple-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}>
-                                {u.name}
-                                <span className="ml-1 text-xs opacity-60">({u.tasks_count})</span>
+                {/* Main area: sidebar + task table */}
+                <div className="flex gap-5 items-start">
+
+                    {/* Sidebar */}
+                    <div className="w-52 shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                        <div className="px-4 py-3 border-b border-gray-100">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Filter by User</p>
+                        </div>
+                        <div className="p-2 space-y-0.5">
+                            <button onClick={() => setSelectedUser(null)}
+                                className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition flex items-center justify-between ${selectedUser === null ? 'bg-purple-600 text-white font-semibold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                <span>All Users</span>
+                                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${selectedUser === null ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'}`}>{tasks.length}</span>
                             </button>
-                        ))}
+                            {(users || []).map(u => (
+                                <button key={u.id} onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)}
+                                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition flex items-center gap-2 ${selectedUser === u.id ? 'bg-purple-600 text-white font-semibold shadow-sm' : 'text-gray-600 hover:bg-gray-50'}`}>
+                                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${selectedUser === u.id ? 'bg-white/25 text-white' : `${avatarColor(u.name)} text-white`}`}>
+                                        {initials(u.name)}
+                                    </span>
+                                    <span className="flex-1 truncate">{u.name}</span>
+                                    <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${selectedUser === u.id ? 'bg-white/25 text-white' : 'bg-gray-100 text-gray-500'}`}>{u.tasks_count}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Task list */}
-                    <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                            <span className="text-sm font-bold text-gray-900">{filtered.length} task{filtered.length !== 1 ? 's' : ''}</span>
+                    {/* Task panel */}
+                    <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+                        {/* Toolbar */}
+                        <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+                            <div className="flex-1 relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+                                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks or users…"
+                                    className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition" />
+                            </div>
+                            <span className="text-xs text-gray-400 shrink-0 font-medium">{filtered.length} task{filtered.length !== 1 ? 's' : ''}</span>
+                            <button onClick={exportCSV}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition shrink-0">
+                                ⬇️ Export CSV
+                            </button>
                             <Link href={route('tasks.create')}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white rounded-lg shadow hover:opacity-90 transition"
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white rounded-xl shadow-sm hover:opacity-90 transition shrink-0"
                                 style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                                 + New Task
                             </Link>
                         </div>
 
+                        {/* Table header */}
+                        <div className="grid grid-cols-[1fr_100px_80px_120px] gap-x-3 px-5 py-2 bg-gray-50/80 border-b border-gray-100 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
+                            <span>Task</span>
+                            <span className="text-center">Status</span>
+                            <span className="text-center">Priority</span>
+                            <span className="text-right">Actions</span>
+                        </div>
+
                         {filtered.length === 0 ? (
-                            <div className="text-center py-16 text-gray-400 text-sm">No tasks found.</div>
+                            <div className="text-center py-16 text-gray-400 text-sm">
+                                <div className="text-4xl mb-3 opacity-30">📋</div>
+                                No tasks found.
+                            </div>
                         ) : (
                             <div className="divide-y divide-gray-50">
                                 {filtered.map(t => {
                                     const st = statusInfo(t);
                                     return (
-                                        <div key={t.id} className={`group flex items-start gap-4 px-5 py-4 hover:bg-gray-50/80 transition ${t.is_overdue ? 'bg-rose-50/60' : t.status === 'done' ? 'bg-emerald-50/30' : ''}`}>
-                                            {/* Status indicator strip */}
-                                            <div className={`w-1 self-stretch rounded-full shrink-0 ${t.is_overdue ? 'bg-rose-400' : t.status === 'done' ? 'bg-emerald-400' : t.status === 'in_progress' ? 'bg-purple-400' : 'bg-gray-200'}`} />
+                                        <div key={t.id} className={`group flex items-center hover:bg-gray-50/80 transition ${rowBg(t)}`}>
+                                            {/* Left color strip */}
+                                            <div className={`w-[3px] self-stretch shrink-0 ${borderAccent(t)}`} />
 
-                                            <div className="flex-1 min-w-0">
-                                                {/* Title row */}
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <p className={`text-sm font-semibold ${t.status === 'done' ? 'line-through text-gray-400' : t.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
-                                                        {t.status === 'done' ? '✅ ' : t.is_overdue ? '⚠️ ' : ''}{t.title}
-                                                    </p>
-                                                    {t.comments_count > 0 && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600">
-                                                            💬 {t.comments_count}
-                                                        </span>
-                                                    )}
-                                                    {t.submissions_count > 0 && (
-                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600">
-                                                            📤 {t.submissions_count}{t.max_submissions ? `/${t.max_submissions}` : ''}
-                                                        </span>
-                                                    )}
+                                            {/* Task info */}
+                                            <div className="flex-1 min-w-0 flex items-center gap-3 px-4 py-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${avatarColor(t.user?.name)}`}>
+                                                    {initials(t.user?.name)}
                                                 </div>
-
-                                                {/* Meta row */}
-                                                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                                    <span className={`${priorityBadge(t.priority)} border`}>{t.priority}</span>
-                                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${st.cls}`}>{st.label}</span>
-                                                    {t.user && <span className="text-xs text-gray-400">👤 {t.user.name}</span>}
-                                                    {t.project && <span className="text-xs text-gray-400">📁 {t.project.name}</span>}
-                                                </div>
-
-                                                {/* Deadline */}
-                                                {t.due_date && (
-                                                    <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${t.is_overdue ? 'text-rose-500 font-semibold' : 'text-gray-400'}`}>
-                                                        📅 {formatDate(t.due_date)}
-                                                        {t.due_time && (
-                                                            <span className="text-purple-500 font-semibold">· 🕐 {formatTime(t.due_time)}</span>
-                                                        )}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <p className={`text-sm font-semibold truncate ${t.status === 'done' ? 'line-through text-gray-400' : t.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
+                                                            {t.title}
+                                                        </p>
+                                                        {t.comments_count > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-600 font-semibold shrink-0">💬 {t.comments_count}</span>}
+                                                        {t.submissions_count > 0 && <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600 font-semibold shrink-0">📤 {t.submissions_count}{t.max_submissions ? `/${t.max_submissions}` : ''}</span>}
                                                     </div>
-                                                )}
+                                                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-400 flex-wrap">
+                                                        {t.user    && <span>👤 {t.user.name}</span>}
+                                                        {t.project && <span>📁 {t.project.name}</span>}
+                                                        {t.due_date && <span className={t.is_overdue ? 'text-rose-500 font-semibold' : ''}>📅 {formatDate(t.due_date)}{t.due_time ? ` · 🕐 ${formatTime(t.due_time)}` : ''}</span>}
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            {/* Action buttons */}
-                                            <div className="flex gap-2 shrink-0 opacity-80 group-hover:opacity-100 transition">
-                                                <button onClick={() => setEditTask(t)}
-                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
-                                                    ✏️ Edit
-                                                </button>
+                                            {/* Status */}
+                                            <div className="w-[100px] flex justify-center shrink-0 px-2">
+                                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${st.cls}`}>{st.label}</span>
+                                            </div>
+
+                                            {/* Priority */}
+                                            <div className="w-[80px] flex justify-center shrink-0 px-2">
+                                                <span className={priorityBadge(t.priority)}>{t.priority}</span>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="w-[120px] flex items-center justify-end gap-1.5 pr-4 shrink-0 opacity-60 group-hover:opacity-100 transition">
+                                                <button onClick={() => setEditTask(t)} title="Edit"
+                                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 transition text-sm">✏️</button>
                                                 {t.status === 'done' ? (
-                                                    <button onClick={() => reopenTask(t)}
-                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 transition">
-                                                        🔓 Reopen
-                                                    </button>
+                                                    <button onClick={() => reopenTask(t)} title="Reopen"
+                                                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100 transition text-sm">🔓</button>
                                                 ) : (
-                                                    <button onClick={() => confirmClose(t)}
-                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition">
-                                                        ✅ Close
-                                                    </button>
+                                                    <button onClick={() => setCloseConfirm(t)} title="Mark Done"
+                                                        className="w-7 h-7 flex items-center justify-center rounded-lg border border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition text-sm">✅</button>
                                                 )}
-                                                <button onClick={() => confirmDelete(t)}
-                                                    className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
-                                                    🗑️ Delete
-                                                </button>
+                                                <button onClick={() => setDeleteConfirm(t)} title="Delete"
+                                                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition text-sm">🗑️</button>
                                             </div>
                                         </div>
                                     );
@@ -444,31 +378,20 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
                 </div>
             </div>
 
-            {/* Edit Modal */}
             {editTask && <EditTaskModal task={editTask} onClose={() => setEditTask(null)} />}
 
-            {/* Delete Confirmation */}
             {deleteConfirm && (
-                <ConfirmModal
-                    title="Delete Task?"
-                    message={`Are you sure you want to permanently delete "${deleteConfirm.title}"? This cannot be undone.`}
-                    confirmLabel="Delete"
-                    confirmCls="bg-rose-500 hover:bg-rose-600"
-                    onConfirm={doDelete}
-                    onCancel={() => setDeleteConfirm(null)}
-                />
+                <ConfirmModal title="Delete Task?"
+                    message={`Permanently delete "${deleteConfirm.title}"? This cannot be undone.`}
+                    confirmLabel="Delete" confirmCls="bg-rose-500 hover:bg-rose-600"
+                    onConfirm={doDelete} onCancel={() => setDeleteConfirm(null)} />
             )}
 
-            {/* Close Confirmation */}
             {closeConfirm && (
-                <ConfirmModal
-                    title="Close Task?"
-                    message={`Mark "${closeConfirm.title}" as done? The assigned user will no longer be able to edit it.`}
-                    confirmLabel="Close Task"
-                    confirmCls="bg-emerald-500 hover:bg-emerald-600"
-                    onConfirm={doClose}
-                    onCancel={() => setCloseConfirm(null)}
-                />
+                <ConfirmModal title="Mark as Done?"
+                    message={`Close "${closeConfirm.title}"? The user won't be able to edit it.`}
+                    confirmLabel="Close Task" confirmCls="bg-emerald-500 hover:bg-emerald-600"
+                    onConfirm={doClose} onCancel={() => setCloseConfirm(null)} />
             )}
         </AppLayout>
     );
