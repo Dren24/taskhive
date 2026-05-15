@@ -64,7 +64,7 @@ class AdminController extends Controller
                 'tasks_count'   => $u->tasks_count,
                 'projects_count'=> ($u->projects_count ?? 0) + ($u->member_projects_count ?? 0),
                 'last_active'   => $u->tasks_max_updated_at
-                    ? $u->tasks_max_updated_at->diffForHumans()
+                    ? \Carbon\Carbon::parse($u->tasks_max_updated_at)->diffForHumans()
                     : 'No activity',
                 'projects'      => $u->projects
                     ->concat($u->memberProjects)
