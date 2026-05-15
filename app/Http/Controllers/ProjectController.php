@@ -120,6 +120,21 @@ class ProjectController extends Controller
         $tasks = $user->isAdmin()
             ? $project->tasks()->with(['user', 'leader', 'votes'])->latest()->get()
             : $project->tasks()->where('user_id', $user->id)->with(['user', 'leader', 'votes'])->latest()->get();
+
+        // Build groupMembers map: group_id → [{id, name}, ...]
+        $groupIds = $tasks->pluck('group_id')->filter()->unique()->values();
+        $groupMembersMap = [];
+        if ($groupIds->isNotEmpty()) {
+            \App\Models\Task::whereIn('group_id', $groupIds)
+                ->with('user:id,name')
+                ->get()
+                ->each(function ($t) use (&$groupMembersMap) {
+                    if ($t->user) {
+                        $groupMembersMap[$t->group_id][$t->user->id] = ['id' => $t->user->id, 'name' => $t->user->name];
+                    }
+                });
+        }
+
         $project->load('comments.user');
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -147,6 +162,7 @@ class ProjectController extends Controller
                 'leader'          => $t->leader ? ['id' => $t->leader->id, 'name' => $t->leader->name] : null,
                 'vote_counts'     => $t->votes ? $t->votes->countBy('candidate_user_id')->all() : [],
                 'my_vote'         => $t->votes ? ($t->votes->firstWhere('voter_user_id', $user->id)?->candidate_user_id) : null,
+                'groupMembers'    => $t->group_id ? array_values($groupMembersMap[$t->group_id] ?? []) : [],
             ]),
             'projectOptions'  => $projectOptions,
             'assignableUsers' => $assignableUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),

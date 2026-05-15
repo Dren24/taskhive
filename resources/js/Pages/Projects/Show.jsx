@@ -311,8 +311,7 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                             <div className="mt-3 pt-3 border-t border-gray-100">
                                                 <p className="text-xs font-semibold text-gray-500 mb-2">🗳️ Vote for task leader</p>
                                                 <div className="flex flex-wrap gap-2">
-                                                    {/* We show vote buttons for group members visible via the task user */}
-                                                    {[t.user].filter(Boolean).map(u => {
+                                                    {(t.groupMembers?.length ? t.groupMembers : [t.user]).filter(Boolean).map(u => {
                                                         const voteCount = t.vote_counts?.[u.id] || 0;
                                                         const isMyVote = t.my_vote === u.id;
                                                         return (

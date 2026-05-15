@@ -55,6 +55,20 @@ class TaskController extends Controller
             ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->latest()->get()
             : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->latest()->get();
 
+        // Build group_id → [members] map so every group task card can show all voters
+        $groupIds = $tasks->pluck('group_id')->filter()->unique()->values();
+        $groupMembersMap = [];
+        if ($groupIds->isNotEmpty()) {
+            Task::whereIn('group_id', $groupIds)
+                ->with('user:id,name')
+                ->get(['id', 'group_id', 'user_id'])
+                ->each(function ($t) use (&$groupMembersMap) {
+                    if ($t->group_id && $t->user) {
+                        $groupMembersMap[$t->group_id][$t->user->id] = ['id' => $t->user->id, 'name' => $t->user->name];
+                    }
+                });
+        }
+
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
             : $this->userProjects()->map(fn($p) => ['id' => $p->id, 'name' => $p->name]);
@@ -79,6 +93,7 @@ class TaskController extends Controller
                 'leader'            => $t->leader ? ['id' => $t->leader->id, 'name' => $t->leader->name] : null,
                 'vote_counts'       => $t->votes->countBy('candidate_user_id')->all(),
                 'my_vote'           => $t->votes->firstWhere('voter_user_id', $user->id)?->candidate_user_id,
+                'groupMembers'      => $t->group_id ? array_values($groupMembersMap[$t->group_id] ?? []) : [],
                 'comments'          => $t->comments->map(fn($c) => [
                     'id'         => $c->id,
                     'body'       => $c->body,

@@ -562,7 +562,7 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                 <div className="pt-3 border-t border-gray-100">
                                                     <p className="text-xs font-semibold text-gray-500 mb-2">🗳️ Vote for task leader</p>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {[task.user].filter(Boolean).map(u => {
+                                                        {(task.groupMembers?.length ? task.groupMembers : [task.user]).filter(Boolean).map(u => {
                                                             const voteCount = task.vote_counts?.[u.id] || 0;
                                                             const isMyVote = task.my_vote === u.id;
                                                             return (
