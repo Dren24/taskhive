@@ -2,6 +2,20 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
 
+function formatTime(time) {
+    if (!time) return null;
+    const [h, m] = time.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour = h % 12 || 12;
+    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function priorityBadge(p) {
     const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
     return `inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
@@ -126,51 +140,96 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                     </div>
                 </div>
 
-                {/* Tasks */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Tasks — Canvas assignment style */}
+                <div className="space-y-3">
                     {tasks.length === 0 ? (
-                        <div className="text-center py-16 text-gray-400 text-sm">No tasks in this project.</div>
-                    ) : (
-                        <div className="divide-y divide-gray-100">
-                            {tasks.map(t => (
-                                <div key={t.id} className={`flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition ${t.is_overdue ? 'bg-rose-50' : ''}`}>
-                                    <div className="flex-1 min-w-0">
-                                        <p className={`text-sm font-medium ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
-                                        <div className="flex flex-wrap gap-2 mt-1.5">
-                                            <span className={priorityBadge(t.priority)}>{t.priority}</span>
-                                            {t.due_date && <span className={`text-xs ${t.is_overdue ? 'text-rose-500 font-medium' : 'text-gray-400'}`}>{t.due_date}</span>}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 text-gray-400 text-sm">
+                            No tasks in this project.
+                        </div>
+                    ) : tasks.map(t => {
+                        const overdue = t.is_overdue;
+                        const done = t.status === 'done';
+                        const inProgress = t.status === 'in_progress';
+                        const stripColor = overdue ? '#f87171' : done ? '#34d399' : inProgress ? '#a78bfa' : '#d1d5db';
+                        const statusLabel = done ? 'Done' : inProgress ? 'In Progress' : 'To Do';
+
+                        return (
+                            <div key={t.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition
+                                ${overdue ? 'border-rose-200' : done ? 'border-emerald-100' : 'border-gray-100'}`}>
+                                <div className="flex">
+                                    {/* Left color strip */}
+                                    <div className="w-1.5 shrink-0" style={{ backgroundColor: stripColor }} />
+
+                                    {/* Main content */}
+                                    <div className="flex-1 px-5 py-4 min-w-0">
+                                        {/* Title */}
+                                        <h3 className={`text-base font-bold mb-1 ${done ? 'line-through text-gray-400' : overdue ? 'text-rose-700' : 'text-gray-900'}`}>
+                                            {done && '✅ '}{overdue && '⚠️ '}{t.title}
+                                        </h3>
+
+                                        {/* Canvas-style metadata row */}
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 border-b border-gray-100 pb-3 mb-3">
+                                            {t.due_date ? (
+                                                <span className={overdue ? 'text-rose-600 font-semibold' : ''}>
+                                                    <span className="font-semibold text-gray-800">Due</span>{' '}
+                                                    {formatDate(t.due_date)}
+                                                    {t.due_time && <span className={`font-semibold ${overdue ? 'text-rose-600' : 'text-purple-600'}`}> by {formatTime(t.due_time)}</span>}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400 italic">No deadline set</span>
+                                            )}
+                                            <span className="text-gray-300 hidden sm:inline">|</span>
+                                            <span>
+                                                <span className="font-semibold text-gray-800">Priority</span>{' '}
+                                                <span className={priorityBadge(t.priority)}>{t.priority}</span>
+                                            </span>
+                                            <span className="text-gray-300 hidden sm:inline">|</span>
+                                            <span>
+                                                <span className="font-semibold text-gray-800">Status</span>{' '}
+                                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold
+                                                    ${done ? 'bg-emerald-100 text-emerald-700' : inProgress ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {statusLabel}
+                                                </span>
+                                            </span>
                                         </div>
+
+                                        {/* Description if any */}
+                                        {t.description && (
+                                            <p className="text-sm text-gray-500 leading-relaxed">{t.description}</p>
+                                        )}
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {!isAdmin && (t.is_overdue || t.status === 'done') && (
+
+                                    {/* Right: action buttons */}
+                                    <div className="flex flex-col items-end justify-center gap-2 px-4 py-4 shrink-0 border-l border-gray-50">
+                                        {/* Main action button */}
+                                        {!isAdmin && (overdue || done) ? (
                                             <button
                                                 onClick={() => askAdminReopen(t)}
-                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                                className="px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition hover:opacity-90"
+                                                style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
                                             >
                                                 Ask Admin
                                             </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => toggleStatus(t)}
+                                                className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition hover:opacity-90
+                                                    ${done ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                            >
+                                                {done ? '🔓 Reopen' : t.status === 'in_progress' ? '✅ Mark Done' : '▶ Start'}
+                                            </button>
                                         )}
-                                        <button
-                                            onClick={() => isAdmin || (!t.is_overdue && t.status !== 'done') ? toggleStatus(t) : null}
-                                            disabled={!isAdmin && (t.is_overdue || t.status === 'done')}
-                                            title={!isAdmin && (t.is_overdue || t.status === 'done') ? 'Ask admin to reopen this task' : undefined}
-                                            className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${!isAdmin && (t.is_overdue || t.status === 'done')
-                                                ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
-                                                : t.status === 'done'
-                                                    ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
-                                                    : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
-                                                }`}>
-                                            {t.status === 'done' ? 'Reopen' : 'Mark Done'}
-                                        </button>
-                                        <Link href={route('tasks.edit', t.id)}
-                                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
-                                            Edit
-                                        </Link>
+                                        {isAdmin && (
+                                            <Link href={route('tasks.edit', t.id)}
+                                                className="px-4 py-2 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition text-center">
+                                                ✏️ Edit
+                                            </Link>
+                                        )}
                                     </div>
                                 </div>
-                            ))}
-                        </div>
-                    )}
+                            </div>
+                        );
+                    })}
                 </div>
 
                 {/* Progress Comments */}

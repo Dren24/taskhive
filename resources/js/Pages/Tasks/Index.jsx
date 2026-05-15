@@ -18,12 +18,17 @@ function statusLabel(t) {
     return { done: 'Done', in_progress: 'In Progress', todo: 'Todo' }[t.status] || t.status;
 }
 
-function formatTime(time) {
-    if (!time) return null;
-    const [h, m] = time.split(':').map(Number);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour = h % 12 || 12;
-    return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+function formatDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function isDueSoon(task) {
+    if (!task.due_date || task.is_overdue || task.status === 'done') return false;
+    const due = new Date(task.due_date + 'T' + (task.due_time || '23:59') + ':00');
+    const h = (due - new Date()) / 36e5;
+    return h >= 0 && h <= 48;
 }
 
 export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
@@ -172,46 +177,81 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                     <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3">{flash.error}</div>
                 )}
 
-                {/* Task list */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Task list — Canvas assignment style */}
+                <div className="space-y-3">
                     {tasks.length === 0 ? (
-                        <div className="text-center py-16 text-gray-400">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 text-gray-400">
                             <p className="text-sm">No tasks yet.</p>
-                            {isAdmin && (
-                                <Link href={route('tasks.create')} className="text-purple-600 text-sm font-medium hover:underline mt-2 inline-block">Create one</Link>
-                            )}
                         </div>
                     ) : (
-                        <div className="divide-y divide-gray-100">
-                            {tasks.map(task => (
-                                <div key={task.id} className={`${task.is_overdue ? 'bg-rose-50' : ''}`}>
-                                    {/* Task row */}
-                                    <div className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <p className={`text-sm font-medium ${task.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
+                        tasks.map(task => {
+                            const overdue = task.is_overdue;
+                            const done = task.status === 'done';
+                            const soon = isDueSoon(task);
+                            const inProgress = task.status === 'in_progress';
+                            const stripColor = overdue ? '#f87171' : done ? '#34d399' : soon ? '#fbbf24' : inProgress ? '#a78bfa' : '#d1d5db';
+                            const statusLbl = done ? 'Done' : inProgress ? 'In Progress' : 'To Do';
+                            const statusCls = done ? 'bg-emerald-100 text-emerald-700' : inProgress ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500';
+
+                            return (
+                                <div key={task.id} className={`bg-white rounded-2xl shadow-sm border overflow-hidden transition
+                                    ${overdue ? 'border-rose-200' : soon ? 'border-amber-200' : done ? 'border-emerald-100' : 'border-gray-100'}`}>
+                                    <div className="flex">
+                                        {/* Left color strip */}
+                                        <div className="w-1.5 shrink-0" style={{ backgroundColor: stripColor }} />
+
+                                        {/* Main content */}
+                                        <div className="flex-1 px-5 py-4 min-w-0">
+                                            {/* Title */}
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <h3 className={`text-base font-bold ${done ? 'line-through text-gray-400' : overdue ? 'text-rose-700' : 'text-gray-900'}`}>
+                                                    {done && '✅ '}{overdue && '⚠️ '}{soon && !overdue && '⏰ '}{task.title}
+                                                </h3>
                                                 {task.comments_count > 0 && (
-                                                    <button
-                                                        onClick={() => toggleComments(task.id)}
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600 hover:bg-purple-200 transition"
-                                                    >
-                                                        💬 {task.comments_count}
-                                                        <span className="ml-0.5">{expandedComments[task.id] ? '▲' : '▼'}</span>
+                                                    <button onClick={() => toggleComments(task.id)}
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-600 hover:bg-purple-200 transition">
+                                                        💬 {task.comments_count} {expandedComments[task.id] ? '▲' : '▼'}
                                                     </button>
                                                 )}
-                                            </div>
-                                            <div className="flex flex-wrap gap-2 mt-1.5">
-                                                <span className={priorityBadge(task.priority)}>{task.priority}</span>
-                                                <span className={statusBadge(task)}>{statusLabel(task)}</span>
-                                                {task.due_date && (
-                                                    <span className="text-xs text-gray-400">
-                                                        {task.due_date}{task.due_time ? ` · ${formatTime(task.due_time)}` : ''}
+                                                {task.submissions_count > 0 && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-600">
+                                                        📤 {task.submissions_count}{task.max_submissions ? `/${task.max_submissions}` : ''}
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {/* Canvas-style metadata row */}
+                                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 border-b border-gray-100 pb-3 mt-2 mb-3">
+                                                {task.due_date ? (
+                                                    <span className={overdue ? 'text-rose-600 font-semibold' : soon ? 'text-amber-600 font-semibold' : ''}>
+                                                        <span className="font-semibold text-gray-800">Due</span>{' '}
+                                                        {formatDate(task.due_date)}
+                                                        {task.due_time && (
+                                                            <span className={`font-semibold ${overdue ? 'text-rose-600' : soon ? 'text-amber-600' : 'text-purple-600'}`}>
+                                                                {' '}by {formatTime(task.due_time)}
+                                                            </span>
+                                                        )}
+                                                        {overdue && <span className="ml-1.5 text-xs bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded-full font-bold">Overdue</span>}
+                                                        {soon && !overdue && <span className="ml-1.5 text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full font-bold">Due soon</span>}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-400 italic text-sm">No deadline</span>
+                                                )}
+                                                <span className="text-gray-300 hidden sm:inline">|</span>
+                                                <span>
+                                                    <span className="font-semibold text-gray-800">Priority</span>{' '}
+                                                    <span className={priorityBadge(task.priority)}>{task.priority}</span>
+                                                </span>
+                                                <span className="text-gray-300 hidden sm:inline">|</span>
+                                                <span>
+                                                    <span className="font-semibold text-gray-800">Status</span>{' '}
+                                                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls}`}>{statusLbl}</span>
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            {/* Submit / Resubmit button for non-admins */}
+
+                                        {/* Right: action button */}
+                                        <div className="flex flex-col items-end justify-center gap-2 px-4 py-4 shrink-0 border-l border-gray-50">
                                             {!isAdmin && (() => {
                                                 const limit = task.max_submissions;
                                                 const count = task.submissions_count || 0;
@@ -222,49 +262,37 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                         onClick={() => !atLimit && submitTask(task)}
                                                         disabled={atLimit || submittingTaskId === task.id}
                                                         title={atLimit ? `Submission limit reached (${count}/${limit})` : `${label} this task`}
-                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${atLimit
-                                                            ? 'border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
-                                                            : 'border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100'
-                                                        }`}
+                                                        className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition
+                                                            ${atLimit ? 'bg-gray-400 cursor-not-allowed opacity-60' : 'hover:opacity-90'}
+                                                            ${!atLimit && overdue ? 'bg-rose-500' : !atLimit ? 'bg-blue-500' : ''}`}
                                                     >
-                                                        {submittingTaskId === task.id ? '...' : (
-                                                            atLimit ? `Submitted (${count}/${limit})` : (
-                                                                limit ? `${label} (${count}/${limit})` : label
-                                                            )
-                                                        )}
+                                                        {submittingTaskId === task.id ? '...' : atLimit ? `Submitted (${count}/${limit})` : limit ? `${label} (${count}/${limit})` : label}
                                                     </button>
                                                 );
                                             })()}
-
-                                            {/* Admin close/reopen toggle */}
                                             {isAdmin && (
-                                                <button
-                                                    onClick={() => toggleStatus(task)}
-                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition ${task.status === 'done'
-                                                        ? 'border-amber-200 text-amber-600 bg-amber-50 hover:bg-amber-100'
-                                                        : 'border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
-                                                    }`}>
-                                                    {task.status === 'done' ? 'Reopen' : 'Close'}
-                                                </button>
-                                            )}
-
-                                            <Link href={route('tasks.edit', task.id)}
-                                                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition">
-                                                Edit
-                                            </Link>
-                                            {isAdmin && (
-                                                <button onClick={() => deleteTask(task)} disabled={deletingId === task.id}
-                                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition disabled:opacity-50">
-                                                    Delete
-                                                </button>
+                                                <>
+                                                    <button onClick={() => toggleStatus(task)}
+                                                        className={`px-4 py-2 text-sm font-semibold rounded-xl text-white shadow-sm transition hover:opacity-90
+                                                            ${done ? 'bg-amber-500' : 'bg-emerald-500'}`}>
+                                                        {done ? '🔓 Reopen' : '✅ Close'}
+                                                    </button>
+                                                    <Link href={route('tasks.edit', task.id)}
+                                                        className="px-4 py-2 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition text-center">
+                                                        ✏️ Edit
+                                                    </Link>
+                                                    <button onClick={() => deleteTask(task)} disabled={deletingId === task.id}
+                                                        className="px-4 py-2 text-xs font-semibold rounded-xl border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition disabled:opacity-50">
+                                                        🗑️ Delete
+                                                    </button>
+                                                </>
                                             )}
                                         </div>
                                     </div>
 
                                     {/* Expandable comments panel */}
                                     {expandedComments[task.id] && (
-                                        <div className="px-5 pb-4 pt-1 bg-gray-50 border-t border-gray-100 space-y-3">
-                                            {/* Comment list */}
+                                        <div className="px-6 pb-4 pt-2 bg-gray-50 border-t border-gray-100 space-y-3">
                                             {(task.comments || []).map(c => (
                                                 <div key={c.id} className="flex gap-3">
                                                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${c.user.is_admin ? 'bg-purple-100 text-purple-600' : 'bg-gray-200 text-gray-600'}`}>
@@ -280,8 +308,6 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                     </div>
                                                 </div>
                                             ))}
-
-                                            {/* Reply form */}
                                             <form onSubmit={(e) => submitReply(e, task)} className="flex gap-2 pt-1">
                                                 <input
                                                     type="text"
@@ -290,22 +316,18 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                     placeholder="Write a reply..."
                                                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                                                 />
-                                                <button
-                                                    type="submit"
+                                                <button type="submit"
                                                     disabled={replySubmitting[task.id] || !(replyText[task.id] || '').trim()}
                                                     className="px-4 py-2 text-xs font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
-                                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
-                                                >
+                                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                                                     {replySubmitting[task.id] ? '...' : 'Reply'}
                                                 </button>
                                             </form>
                                         </div>
                                     )}
-
                                 </div>
-                            ))}
-
-                        </div>
+                            );
+                        })
                     )}
                 </div>
             </div>

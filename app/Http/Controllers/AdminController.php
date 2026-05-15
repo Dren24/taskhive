@@ -44,18 +44,39 @@ class AdminController extends Controller
             'tasks' => $tasks->map(fn($t) => [
                 'id'                => $t->id,
                 'title'             => $t->title,
+                'description'       => $t->description,
                 'priority'          => $t->priority,
                 'status'            => $t->status,
                 'due_date'          => $t->due_date?->format('Y-m-d'),
+                'due_time'          => $t->due_time,
                 'is_overdue'        => $t->status !== 'done' && $t->due_date && $t->due_date->lt($today),
                 'comments_count'    => $t->comments_count,
                 'submissions_count' => $t->submissions_count,
                 'max_submissions'   => $t->max_submissions,
                 'user'              => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
-                'project'           => $t->project ? ['name' => $t->project->name] : null,
+                'project'           => $t->project ? ['id' => $t->project->id, 'name' => $t->project->name] : null,
             ]),
             'stats' => $stats,
         ]);
+    }
+
+    public function updateTask(Task $task)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+        abort_if(!$user->isAdmin(), 403);
+
+        $validated = request()->validate([
+            'title'       => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'priority'    => 'required|in:low,medium,high',
+            'status'      => 'required|in:todo,in_progress,done',
+            'due_date'    => 'nullable|date',
+            'due_time'    => 'nullable|date_format:H:i',
+        ]);
+
+        $task->update($validated);
+        return back()->with('success', 'Task updated.');
     }
 
     public function destroyTask(Task $task)

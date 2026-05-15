@@ -10,6 +10,12 @@ function formatTime(time) {
     return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function formatDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 function priorityBadge(p) {
     const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
     return `inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
@@ -97,12 +103,22 @@ function TaskPopup({ tasks, onClose, anchorRef }) {
                                 {t.description && (
                                     <p className="text-xs text-gray-400 truncate mt-0.5">{t.description}</p>
                                 )}
+                                {/* Folder name */}
+                                {t.project_name && (
+                                    <p className="text-xs text-gray-400 mt-0.5">📁 {t.project_name}</p>
+                                )}
                                 <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                                     <span className={priorityBadge(t.priority)}>
                                         {priorityIcon(t.priority)} {t.priority}
                                     </span>
                                     <span className={statusBadge(t)}>{statusLabel(t)}</span>
                                 </div>
+                                {/* Deadline: "May 15, 2026 – 3:30 PM" */}
+                                {t.due_date && (
+                                    <p className={`text-xs font-semibold mt-1.5 ${t.is_overdue ? 'text-rose-500' : 'text-purple-500'}`}>
+                                        📅 {formatDate(t.due_date)}{t.due_time ? ` – ${formatTime(t.due_time)}` : ''}
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </Link>
@@ -273,24 +289,49 @@ export default function Dashboard({ tasks, stats, calendarTasks }) {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                         <h2 className="text-sm font-bold text-gray-800 mb-4">Recent Tasks</h2>
                         {tasks && tasks.length > 0 ? (
-                            <div className="space-y-3">
-                                {tasks.slice(0, 8).map(t => (
-                                    <Link key={t.id} href={route('tasks.edit', t.id)}
-                                        className={`flex items-center gap-3 p-3 rounded-xl border transition hover:shadow-sm hover:border-purple-200 ${t.is_overdue ? 'border-rose-200 bg-rose-50' : 'border-gray-100 bg-gray-50'}`}>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-sm font-medium truncate ${t.status === 'done' ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
-                                            <div className="flex gap-2 mt-1">
-                                                <span className={priorityBadge(t.priority)}>{t.priority}</span>
-                                                <span className={statusBadge(t)}>{statusLabel(t)}</span>
+                            <div className="space-y-2">
+                                {tasks.slice(0, 8).map(t => {
+                                    const now = new Date();
+                                    const due = t.due_date ? new Date(t.due_date + 'T' + (t.due_time || '23:59') + ':00') : null;
+                                    const hoursLeft = due ? (due - now) / 36e5 : null;
+                                    const dueSoon = !t.is_overdue && hoursLeft !== null && hoursLeft >= 0 && hoursLeft <= 48;
+
+                                    return (
+                                        <Link key={t.id} href={route('tasks.edit', t.id)}
+                                            className={`flex items-center gap-3 p-3 rounded-xl border transition hover:shadow-sm
+                                                ${t.is_overdue ? 'border-rose-200 bg-rose-50 hover:border-rose-300' :
+                                                  dueSoon ? 'border-amber-200 bg-amber-50 hover:border-amber-300' :
+                                                  t.status === 'done' ? 'border-emerald-100 bg-emerald-50/40 hover:border-emerald-200' :
+                                                  'border-gray-100 bg-gray-50 hover:border-purple-200'}`}>
+
+                                            {/* Left color strip */}
+                                            <div className={`w-1 self-stretch rounded-full shrink-0
+                                                ${t.is_overdue ? 'bg-rose-400' : dueSoon ? 'bg-amber-400' : t.status === 'done' ? 'bg-emerald-400' : t.status === 'in_progress' ? 'bg-purple-400' : 'bg-gray-300'}`} />
+
+                                            <div className="flex-1 min-w-0">
+                                                <p className={`text-sm font-semibold truncate ${t.status === 'done' ? 'line-through text-gray-400' : t.is_overdue ? 'text-rose-700' : 'text-gray-800'}`}>
+                                                    {t.status === 'done' && '✅ '}{t.is_overdue && '⚠️ '}{dueSoon && !t.is_overdue && '⏰ '}{t.title}
+                                                </p>
+                                                <div className="flex flex-wrap gap-1.5 mt-1">
+                                                    <span className={priorityBadge(t.priority)}>{t.priority}</span>
+                                                    <span className={statusBadge(t)}>{statusLabel(t)}</span>
+                                                    {dueSoon && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">Due soon</span>}
+                                                </div>
+                                                {/* Combined date + time: "May 15, 2026 • 3:30 PM" */}
+                                                {t.due_date && (
+                                                    <p className={`text-xs mt-1 font-medium ${t.is_overdue ? 'text-rose-500 font-semibold' : dueSoon ? 'text-amber-600 font-semibold' : 'text-gray-400'}`}>
+                                                        {formatDate(t.due_date)}{t.due_time ? ` • ${formatTime(t.due_time)}` : ''}
+                                                    </p>
+                                                )}
                                             </div>
-                                        </div>
-                                        {t.due_date && (
-                                            <span className="text-xs text-gray-400 shrink-0">
-                                                {t.due_date}{t.due_time ? ` · ${formatTime(t.due_time)}` : ''}
-                                            </span>
-                                        )}
-                                    </Link>
-                                ))}
+
+                                            {/* Right arrow */}
+                                            <svg className="w-4 h-4 text-gray-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </Link>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <p className="text-sm text-gray-400 text-center py-8">No tasks yet.</p>

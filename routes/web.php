@@ -44,6 +44,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('projects/{project}/comments/{comment}', [ProjectCommentController::class, 'destroy'])->name('projects.comments.destroy');
 
     Route::get('admin', [AdminController::class, 'index'])->name('admin.index');
+    Route::patch('admin/tasks/{task}', [AdminController::class, 'updateTask'])->name('admin.tasks.update');
     Route::delete('admin/tasks/{task}', [AdminController::class, 'destroyTask'])->name('admin.tasks.destroy');
     Route::patch('admin/tasks/{task}/status', [AdminController::class, 'updateTaskStatus'])->name('admin.tasks.status');
 
