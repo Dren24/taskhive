@@ -237,9 +237,6 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
     const [editTask, setEditTask] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [closeConfirm, setCloseConfirm] = useState(null);
-    const [deleteUser, setDeleteUser] = useState(null);
-    const [deleteUserStep, setDeleteUserStep] = useState(1);
-    const [deleteUserText, setDeleteUserText] = useState('');
 
     const filtered = selectedUser ? tasks.filter(t => t.user?.id === selectedUser) : tasks;
 
@@ -259,23 +256,7 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
         router.patch(route('admin.tasks.status', task.id), { action: 'reopen' }, { preserveScroll: true });
     };
 
-    const startUserDelete = (user) => {
-        setDeleteUser(user);
-        setDeleteUserStep(1);
-        setDeleteUserText('');
-    };
-    const continueUserDelete = () => setDeleteUserStep(2);
-    const cancelUserDelete = () => {
-        setDeleteUser(null);
-        setDeleteUserStep(1);
-        setDeleteUserText('');
-    };
-    const confirmUserDelete = () => {
-        router.delete(route('admin.users.destroy', deleteUser.id), {
-            preserveScroll: true,
-            onFinish: () => cancelUserDelete(),
-        });
-    };
+    const startUserDelete = (user) => {};
 
     const statCards = [
         { label: 'Total Users', value: stats?.users ?? 0, icon: '👥', color: 'bg-purple-50 text-purple-600' },
@@ -329,59 +310,14 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
 
                 {/* User management + audit log */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-sm font-bold text-gray-900">Admin Account Management</h2>
-                                <p className="text-xs text-gray-500">Delete user accounts with verified confirmation.</p>
-                            </div>
-                        </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-xs">
-                                <thead>
-                                    <tr className="text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-100">
-                                        <th className="text-left py-3 px-4">User</th>
-                                        <th className="text-center py-3">Role</th>
-                                        <th className="text-center py-3">Projects</th>
-                                        <th className="text-center py-3">Tasks</th>
-                                        <th className="text-right py-3 px-4">Last Active</th>
-                                        <th className="text-right py-3 pr-4">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(users || []).length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="py-8 text-center text-gray-400">No users found.</td>
-                                        </tr>
-                                    ) : (
-                                        users.map(u => (
-                                            <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                                                <td className="py-3 px-4">
-                                                    <div className="min-w-0">
-                                                        <p className="font-semibold text-gray-800">{u.name}</p>
-                                                        <p className="text-gray-400 truncate">{u.email}</p>
-                                                    </div>
-                                                </td>
-                                                <td className="text-center">
-                                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${u.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                        {u.role}
-                                                    </span>
-                                                </td>
-                                                <td className="text-center text-gray-600">{u.projects_count}</td>
-                                                <td className="text-center text-gray-600">{u.tasks_count}</td>
-                                                <td className="text-right pr-4 text-gray-400">{u.last_active}</td>
-                                                <td className="text-right pr-4">
-                                                    <button onClick={() => startUserDelete(u)}
-                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
-                                                        🗑️ Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <p className="text-xs text-gray-500 flex items-center gap-2">
+                            <span className="text-base">👤</span>
+                            User account management has moved to{' '}
+                            <a href={route('profile.edit')} className="text-purple-600 font-semibold hover:underline">
+                                Profile → Account Management
+                            </a>.
+                        </p>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -542,18 +478,6 @@ export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
                     confirmCls="bg-emerald-500 hover:bg-emerald-600"
                     onConfirm={doClose}
                     onCancel={() => setCloseConfirm(null)}
-                />
-            )}
-
-            {deleteUser && (
-                <UserDeleteModal
-                    user={deleteUser}
-                    step={deleteUserStep}
-                    verifyText={deleteUserText}
-                    setVerifyText={setDeleteUserText}
-                    onCancel={cancelUserDelete}
-                    onContinue={continueUserDelete}
-                    onConfirm={confirmUserDelete}
                 />
             )}
         </AppLayout>
