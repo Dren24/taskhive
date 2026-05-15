@@ -117,7 +117,9 @@ class ProjectController extends Controller
             );
         }
 
-        $tasks = $project->tasks()->with('user')->latest()->get();
+        $tasks = $user->isAdmin()
+            ? $project->tasks()->with(['user', 'leader', 'votes'])->latest()->get()
+            : $project->tasks()->where('user_id', $user->id)->with(['user', 'leader', 'votes'])->latest()->get();
         $project->load('comments.user');
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -130,16 +132,21 @@ class ProjectController extends Controller
         return Inertia::render('Projects/Show', [
             'project'  => ['id' => $project->id, 'name' => $project->name, 'color' => $project->color],
             'tasks'    => $tasks->map(fn($t) => [
-                'id'          => $t->id,
-                'title'       => $t->title,
-                'status'      => $t->status,
-                'priority'    => $t->priority,
-                'due_date'    => $t->due_date?->format('Y-m-d'),
-                'due_time'    => $t->due_time,
-                'description' => $t->description,
-                'project_id'  => $t->project_id,
-                'is_overdue'  => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
-                'user'        => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
+                'id'              => $t->id,
+                'title'           => $t->title,
+                'status'          => $t->status,
+                'priority'        => $t->priority,
+                'due_date'        => $t->due_date?->format('Y-m-d'),
+                'due_time'        => $t->due_time,
+                'description'     => $t->description,
+                'project_id'      => $t->project_id,
+                'is_overdue'      => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
+                'user'            => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
+                'group_id'        => $t->group_id ?? null,
+                'submission_mode' => $t->submission_mode ?? 'manual',
+                'leader'          => $t->leader ? ['id' => $t->leader->id, 'name' => $t->leader->name] : null,
+                'vote_counts'     => $t->votes ? $t->votes->countBy('candidate_user_id')->all() : [],
+                'my_vote'         => $t->votes ? ($t->votes->firstWhere('voter_user_id', $user->id)?->candidate_user_id) : null,
             ]),
             'projectOptions'  => $projectOptions,
             'assignableUsers' => $assignableUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),

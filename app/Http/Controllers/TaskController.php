@@ -157,7 +157,10 @@ class TaskController extends Controller
                 : $authUser;
 
             $projectId = (int) $taskData['project_id'];
-            abort_unless($this->hasProjectAccess($targetUser, $projectId), 422, 'Choose a project assigned to the user.');
+            // Admins can assign tasks to any user for any project (auto-grants access)
+            if (!$authUser->isAdmin()) {
+                abort_unless($this->hasProjectAccess($targetUser, $projectId), 422, 'Choose a project assigned to the user.');
+            }
 
             $task = $targetUser->tasks()->create([
                 'title'           => $taskData['title'],
@@ -378,7 +381,7 @@ class TaskController extends Controller
                 ? User::findOrFail($validated['user_id'])
                 : $task->user;
             $projectId = (int) $validated['project_id'];
-            abort_unless($this->hasProjectAccess($targetUser, $projectId), 422, 'Choose a project assigned to the user.');
+            // Admin can reassign to any project without access restriction
         }
 
         $task->update($validated);
