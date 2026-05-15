@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\TaskNotification;
+use App\Models\TaskSubmission;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class TaskController extends Controller
@@ -25,8 +27,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user', 'attachments.user'])->withCount('comments')->latest()->get()
-            : $user->tasks()->with(['comments.user', 'attachments.user'])->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user'])->withCount('comments')->latest()->get()
+            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user'])->withCount('comments')->latest()->get();
 
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
@@ -61,6 +63,15 @@ class TaskController extends Controller
                     'created_at'    => $a->created_at->diffForHumans(),
                     'user'          => ['id' => $a->user->id, 'name' => $a->user->name],
                     'download_url'  => route('tasks.attachments.download', [$t->id, $a->id]),
+                ]),
+                'submissions' => $t->submissions->map(fn($s) => [
+                    'id'            => $s->id,
+                    'comment'       => $s->comment,
+                    'original_name' => $s->original_name,
+                    'attempt'       => $s->attempt,
+                    'created_at'    => $s->created_at->format('M j, Y g:i A'),
+                    'user'          => ['name' => $s->user->name],
+                    'download_url'  => $s->file_path ? route('tasks.submissions.download', [$t->id, $s->id]) : null,
                 ]),
             ]),
             'projectOptions' => $projectOptions,
@@ -361,7 +372,7 @@ class TaskController extends Controller
         return back()->with('success', 'Reopen request sent to admin.');
     }
 
-    public function submit(Task $task)
+    public function submit(Request $request, Task $task)
     {
         /** @var User $user */
         $user = Auth::user();
@@ -373,7 +384,37 @@ class TaskController extends Controller
             return back()->with('error', 'Submission limit reached for this task.');
         }
 
+        $request->validate([
+            'comment' => 'nullable|string|max:2000',
+            'file'    => 'nullable|file|max:20480', // 20 MB max
+        ]);
+
+        $filePath     = null;
+        $originalName = null;
+        $mimeType     = null;
+        $size         = null;
+
+        if ($request->hasFile('file')) {
+            $file         = $request->file('file');
+            $filePath     = $file->store('task-submissions', 'public');
+            $originalName = $file->getClientOriginalName();
+            $mimeType     = $file->getMimeType();
+            $size         = $file->getSize();
+        }
+
         $task->increment('submissions_count');
+
+        TaskSubmission::create([
+            'task_id'       => $task->id,
+            'user_id'       => $user->id,
+            'comment'       => $request->input('comment'),
+            'file_path'     => $filePath,
+            'original_name' => $originalName,
+            'mime_type'     => $mimeType,
+            'size'          => $size,
+            'attempt'       => $task->submissions_count,
+        ]);
+
         $task->update(['status' => 'done']);
 
         // Notify admins of submission
@@ -386,6 +427,17 @@ class TaskController extends Controller
             ]);
         }
 
-        return back()->with('success', $task->submissions_count === 1 ? 'Task submitted.' : 'Task resubmitted.');
+        return back()->with('success', $task->submissions_count === 1 ? 'Task submitted successfully.' : 'Task resubmitted successfully.');
     }
-}
+
+    public function downloadSubmission(Task $task, TaskSubmission $submission)
+    {
+        abort_if(!$submission->file_path, 404);
+        abort_if($submission->task_id !== $task->id, 404);
+
+        /** @var User $user */
+        $user = Auth::user();
+        abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
+
+        return Storage::disk('public')->download($submission->file_path, $submission->original_name);
+    }

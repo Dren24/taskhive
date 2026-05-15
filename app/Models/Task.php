@@ -32,6 +32,11 @@ class Task extends Model
         return $this->hasMany(TaskAttachment::class)->latest();
     }
 
+    public function submissions()
+    {
+        return $this->hasMany(TaskSubmission::class)->latest();
+    }
+
     public function notifications()
     {
         return $this->hasMany(TaskNotification::class);
