@@ -159,7 +159,7 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                     <div className="w-full border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 bg-gray-50 cursor-not-allowed select-none">
                                         {data.title}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the title.</p>
+
                                 </div>
                             )}
 
@@ -185,7 +185,7 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                     <div className="w-full border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-500 bg-gray-50 min-h-[80px] cursor-not-allowed select-none">
                                         {data.description || <span className="italic text-gray-400">No description</span>}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the description.</p>
+
                                 </div>
                             )}
 
@@ -248,7 +248,7 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                             </div>
                                         ))}
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the priority.</p>
+
                                 </div>
                             )}
 
