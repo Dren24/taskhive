@@ -1,5 +1,5 @@
-import { Head, useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { useState, useRef } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
 
 const PRIORITIES = ['low', 'medium', 'high'];
@@ -11,19 +11,57 @@ function emptyRow(authId) {
 
 export default function TaskCreate({ projects, users, isAdmin, authId }) {
     const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: '' }]);
-
-    const { post, processing, errors } = useForm({});
+    const [files, setFiles] = useState([[]]);   // array of file arrays, one per row
+    const [processing, setProcessing] = useState(false);
+    const [errors, setErrors] = useState({});
+    const fileInputRefs = useRef([]);
 
     const updateRow = (i, field, value) => {
         setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
     };
 
-    const addRow = () => setRows(prev => [...prev, { ...emptyRow(authId), project_id: '' }]);
-    const removeRow = (i) => setRows(prev => prev.filter((_, idx) => idx !== i));
+    const addRow = () => {
+        setRows(prev => [...prev, { ...emptyRow(authId), project_id: '' }]);
+        setFiles(prev => [...prev, []]);
+    };
+
+    const removeRow = (i) => {
+        setRows(prev => prev.filter((_, idx) => idx !== i));
+        setFiles(prev => prev.filter((_, idx) => idx !== i));
+    };
+
+    const addFiles = (i, newFiles) => {
+        setFiles(prev => prev.map((arr, idx) => idx === i ? [...arr, ...Array.from(newFiles)] : arr));
+        if (fileInputRefs.current[i]) fileInputRefs.current[i].value = '';
+    };
+
+    const removeFile = (rowIdx, fileIdx) => {
+        setFiles(prev => prev.map((arr, idx) => idx === rowIdx ? arr.filter((_, fi) => fi !== fileIdx) : arr));
+    };
+
+    const formatSize = (bytes) => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
 
     const submit = (e) => {
         e.preventDefault();
-        router.post(route('tasks.store'), { tasks: rows });
+        setProcessing(true);
+        const formData = new FormData();
+        rows.forEach((row, i) => {
+            Object.entries(row).forEach(([key, val]) => {
+                formData.append(`tasks[${i}][${key}]`, val ?? '');
+            });
+            (files[i] || []).forEach(file => {
+                formData.append(`files[${i}][]`, file);
+            });
+        });
+        router.post(route('tasks.store'), formData, {
+            forceFormData: true,
+            onError: (errs) => { setErrors(errs); setProcessing(false); },
+            onFinish: () => setProcessing(false),
+        });
     };
 
     return (
@@ -115,6 +153,34 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
                                         </div>
                                     )}
+
+                                    {/* File attachments */}
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Attachments <span className="text-gray-400 font-normal">(optional)</span></label>
+                                        {(files[i] || []).length > 0 && (
+                                            <div className="space-y-1.5 mb-2">
+                                                {(files[i] || []).map((f, fi) => (
+                                                    <div key={fi} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100">
+                                                        <span className="text-sm">📄</span>
+                                                        <span className="flex-1 text-xs text-gray-700 truncate">{f.name}</span>
+                                                        <span className="text-xs text-gray-400">{formatSize(f.size)}</span>
+                                                        <button type="button" onClick={() => removeFile(i, fi)}
+                                                            className="text-xs text-rose-400 hover:text-rose-600">✕</button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <label className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-semibold rounded-xl border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 cursor-pointer transition">
+                                            + Add Files
+                                            <input
+                                                ref={el => fileInputRefs.current[i] = el}
+                                                type="file"
+                                                multiple
+                                                className="hidden"
+                                                onChange={e => addFiles(i, e.target.files)}
+                                            />
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
                         ))}

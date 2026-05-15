@@ -100,11 +100,14 @@ class TaskController extends Controller
             'tasks.*.project_id'       => 'nullable|exists:projects,id',
             'tasks.*.assign_to'        => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
             'tasks.*.max_submissions'  => 'nullable|integer|min:1',
+            'files'                    => 'nullable|array',
+            'files.*'                  => 'nullable|array',
+            'files.*.*'                => 'nullable|file|max:20480',
         ];
 
         $request->validate($rules);
 
-        foreach ($request->input('tasks') as $taskData) {
+        foreach ($request->input('tasks') as $index => $taskData) {
             /** @var User $targetUser */
             $targetUser = ($authUser->isAdmin() && !empty($taskData['assign_to']))
                 ? User::findOrFail($taskData['assign_to'])
@@ -119,6 +122,20 @@ class TaskController extends Controller
                 'project_id'      => $taskData['project_id'] ?: null,
                 'max_submissions' => $taskData['max_submissions'] ?? null,
             ]);
+
+            // Handle file attachments uploaded with this task
+            if ($request->hasFile("files.{$index}")) {
+                foreach ($request->file("files.{$index}") as $file) {
+                    $path = $file->store("task-attachments/{$task->id}", 'local');
+                    $task->attachments()->create([
+                        'user_id'       => $authUser->id,
+                        'original_name' => $file->getClientOriginalName(),
+                        'path'          => $path,
+                        'mime_type'     => $file->getMimeType(),
+                        'size'          => $file->getSize(),
+                    ]);
+                }
+            }
 
             // Notify the assigned user (skip if admin assigned to themselves)
             if ($targetUser->id !== $authUser->id) {
