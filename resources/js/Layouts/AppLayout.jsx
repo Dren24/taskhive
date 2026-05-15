@@ -23,9 +23,12 @@ export default function AppLayout({ title, children }) {
 
     function markRead(notif) {
         const routeName = notif.kind === 'project' ? 'project-notifications.read' : 'notifications.read';
-        router.patch(route(routeName, notif.id), {}, { preserveScroll: true });
         setBellOpen(false);
-        router.visit(notif.url);
+        router.patch(route(routeName, notif.id), {}, {
+            preserveScroll: false,
+            onSuccess: () => router.visit(notif.url),
+            onError: () => router.visit(notif.url), // navigate anyway even if mark-read fails
+        });
     }
 
     function markAllRead() {
