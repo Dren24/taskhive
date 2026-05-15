@@ -117,26 +117,32 @@ class ProjectController extends Controller
             );
         }
 
-        $tasks = $project->tasks()->latest()->get();
+        $tasks = $project->tasks()->with('user')->latest()->get();
         $project->load('comments.user');
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
             : $user->allProjects()->orderBy('name')->get(['id', 'name']);
 
+        $assignableUsers = $user->isAdmin()
+            ? \App\Models\User::where('role', 'user')->orderBy('name')->get(['id', 'name'])
+            : collect();
+
         return Inertia::render('Projects/Show', [
             'project'  => ['id' => $project->id, 'name' => $project->name, 'color' => $project->color],
             'tasks'    => $tasks->map(fn($t) => [
-                'id'        => $t->id,
-                'title'     => $t->title,
-                'status'    => $t->status,
-                'priority'  => $t->priority,
+                'id'          => $t->id,
+                'title'       => $t->title,
+                'status'      => $t->status,
+                'priority'    => $t->priority,
                 'due_date'    => $t->due_date?->format('Y-m-d'),
                 'due_time'    => $t->due_time,
                 'description' => $t->description,
                 'project_id'  => $t->project_id,
-                'is_overdue' => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
+                'is_overdue'  => $t->status !== 'done' && $t->due_date && $t->due_date->lt(now()->startOfDay()),
+                'user'        => $t->user ? ['id' => $t->user->id, 'name' => $t->user->name] : null,
             ]),
-            'projectOptions' => $projectOptions,
+            'projectOptions'  => $projectOptions,
+            'assignableUsers' => $assignableUsers->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
             'comments' => $project->comments->map(fn($c) => [
                 'id'         => $c->id,
                 'body'       => $c->body,

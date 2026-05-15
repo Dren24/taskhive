@@ -524,6 +524,20 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
                                                     <span className="font-semibold text-gray-800">Status</span>{' '}
                                                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${statusCls}`}>{statusLbl}</span>
                                                 </span>
+                                                {isAdmin && task.user?.name && (
+                                                    <>
+                                                        <span className="text-gray-300 hidden sm:inline">|</span>
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="font-semibold text-gray-800">Assigned to</span>{' '}
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                                                                <span className="w-4 h-4 rounded-full bg-violet-400 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                                                                    {task.user.name.charAt(0).toUpperCase()}
+                                                                </span>
+                                                                {task.user.name}
+                                                            </span>
+                                                        </span>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 

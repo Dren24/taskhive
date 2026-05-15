@@ -32,6 +32,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile/users/{user}', [ProfileController::class, 'destroyManagedUser'])->name('profile.users.destroy');
 
     Route::resource('tasks', TaskController::class);
+    Route::post('tasks-group', [TaskController::class, 'storeGroup'])->name('tasks.store.group');
     Route::patch('tasks/{task}/toggle', [TaskController::class, 'toggleStatus'])->name('tasks.toggle');
     Route::post('tasks/{task}/request-reopen', [TaskController::class, 'requestReopen'])->name('tasks.request-reopen');
     Route::post('tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');

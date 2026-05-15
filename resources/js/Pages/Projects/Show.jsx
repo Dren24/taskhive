@@ -21,7 +21,7 @@ function priorityBadge(p) {
     return `inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${map[p] || 'bg-gray-100 text-gray-500'}`;
 }
 
-export default function ProjectShow({ project, tasks, comments = [], isAdmin, authId, projectOptions = [] }) {
+export default function ProjectShow({ project, tasks, comments = [], isAdmin, authId, projectOptions = [], assignableUsers = [] }) {
     const { props } = usePage();
     const flash = props.flash || {};
     const [commentBody, setCommentBody] = useState('');
@@ -32,6 +32,47 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
     const [doneTask, setDoneTask] = useState(null);
     const [doneProjectId, setDoneProjectId] = useState('');
     const [doneSubmitting, setDoneSubmitting] = useState(false);
+
+    // Group Task modal state
+    const [showGroupTask, setShowGroupTask] = useState(false);
+    const [gtTitle, setGtTitle] = useState('');
+    const [gtDescription, setGtDescription] = useState('');
+    const [gtPriority, setGtPriority] = useState('medium');
+    const [gtDueDate, setGtDueDate] = useState('');
+    const [gtDueTime, setGtDueTime] = useState('');
+    const [gtSelectedUsers, setGtSelectedUsers] = useState([]);
+    const [gtSubmitting, setGtSubmitting] = useState(false);
+
+    const toggleGtUser = (id) => {
+        setGtSelectedUsers(prev => prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id]);
+    };
+
+    const openGroupTask = () => {
+        setGtTitle(''); setGtDescription(''); setGtPriority('medium');
+        setGtDueDate(''); setGtDueTime(''); setGtSelectedUsers([]);
+        setShowGroupTask(true);
+    };
+
+    const submitGroupTask = (e) => {
+        e.preventDefault();
+        if (!gtTitle.trim() || gtSelectedUsers.length === 0) return;
+        const tasks = gtSelectedUsers.map(userId => ({
+            title: gtTitle.trim(),
+            description: gtDescription.trim(),
+            priority: gtPriority,
+            due_date: gtDueDate || null,
+            due_time: gtDueTime || null,
+            assign_to: userId,
+            project_id: project.id,
+            status: 'todo',
+        }));
+        router.post(route('tasks.store.group'), { tasks }, {
+            preserveScroll: true,
+            onStart: () => setGtSubmitting(true),
+            onFinish: () => setGtSubmitting(false),
+            onSuccess: () => setShowGroupTask(false),
+        });
+    };
 
     const nextStatus = (status) => {
         if (status === 'todo') return 'in_progress';
@@ -135,7 +176,16 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                         <h1 className="text-lg font-bold text-gray-900">{project.name}</h1>
                         <p className="text-sm text-gray-500">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</p>
                     </div>
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-2">
+                        {isAdmin && (
+                            <button
+                                onClick={openGroupTask}
+                                className="px-3 py-1.5 text-xs font-semibold rounded-xl text-white shadow-sm hover:opacity-90 transition"
+                                style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                            >
+                                👥 Group Task
+                            </button>
+                        )}
                         <Link href={route('projects.index')} className="text-sm text-purple-600 hover:underline">← All Projects</Link>
                     </div>
                 </div>
@@ -143,8 +193,25 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                 {/* Tasks — Canvas assignment style */}
                 <div className="space-y-3">
                     {tasks.length === 0 ? (
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 text-gray-400 text-sm">
-                            No tasks in this project.
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 px-6">
+                            <p className="text-gray-400 text-sm mb-4">No tasks in this project yet.</p>
+                            {isAdmin && (
+                                <div className="flex justify-center gap-3">
+                                    <Link
+                                        href={route('tasks.create') + `?project_id=${project.id}`}
+                                        className="px-4 py-2 text-sm font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                    >
+                                        + New Task
+                                    </Link>
+                                    <button
+                                        onClick={openGroupTask}
+                                        className="px-4 py-2 text-sm font-semibold rounded-xl text-white shadow hover:opacity-90 transition"
+                                        style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                                    >
+                                        👥 Group Task
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     ) : tasks.map(t => {
                         const overdue = t.is_overdue;
@@ -191,6 +258,20 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                                     {statusLabel}
                                                 </span>
                                             </span>
+                                            {isAdmin && t.user?.name && (
+                                                <>
+                                                    <span className="text-gray-300 hidden sm:inline">|</span>
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="font-semibold text-gray-800">Assigned to</span>{' '}
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                                                            <span className="w-4 h-4 rounded-full bg-violet-400 text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+                                                                {t.user.name.charAt(0).toUpperCase()}
+                                                            </span>
+                                                            {t.user.name}
+                                                        </span>
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Description if any */}
@@ -354,6 +435,102 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                     style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
                                 >
                                     {doneSubmitting ? 'Saving...' : 'Mark Done'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {showGroupTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-100 shadow-xl max-h-[90vh] flex flex-col">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-bold text-gray-900">👥 Create Group Task</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">Assign the same task to multiple users in <strong>{project.name}</strong></p>
+                            </div>
+                            <button onClick={() => { if (!gtSubmitting) setShowGroupTask(false); }} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
+                        </div>
+                        <form onSubmit={submitGroupTask} className="p-5 space-y-4 overflow-y-auto flex-1">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Task Title *</label>
+                                <input
+                                    type="text"
+                                    value={gtTitle}
+                                    onChange={e => setGtTitle(e.target.value)}
+                                    required
+                                    placeholder="Enter task title..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Description</label>
+                                <textarea
+                                    value={gtDescription}
+                                    onChange={e => setGtDescription(e.target.value)}
+                                    rows={3}
+                                    placeholder="Optional description..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Priority</label>
+                                    <select value={gtPriority} onChange={e => setGtPriority(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date</label>
+                                    <input type="date" value={gtDueDate} onChange={e => setGtDueDate(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Time</label>
+                                    <input type="time" value={gtDueTime} onChange={e => setGtDueTime(e.target.value)}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-2">
+                                    Assign To (select users) *
+                                    {gtSelectedUsers.length > 0 && (
+                                        <span className="ml-2 text-purple-600">{gtSelectedUsers.length} selected</span>
+                                    )}
+                                </label>
+                                {assignableUsers.length === 0 ? (
+                                    <p className="text-xs text-gray-400 italic">No users available.</p>
+                                ) : (
+                                    <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-100 rounded-xl p-3">
+                                        {assignableUsers.map(u => (
+                                            <label key={u.id} className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 rounded-lg px-2 py-1.5">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={gtSelectedUsers.includes(u.id)}
+                                                    onChange={() => toggleGtUser(u.id)}
+                                                    className="w-4 h-4 rounded accent-purple-600"
+                                                />
+                                                <span className="w-7 h-7 rounded-full bg-violet-100 text-violet-700 flex items-center justify-center text-xs font-bold shrink-0">
+                                                    {u.name.charAt(0).toUpperCase()}
+                                                </span>
+                                                <span className="text-sm text-gray-700">{u.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button type="button" onClick={() => { if (!gtSubmitting) setShowGroupTask(false); }} disabled={gtSubmitting}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={gtSubmitting || !gtTitle.trim() || gtSelectedUsers.length === 0}
+                                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                                    {gtSubmitting ? 'Creating...' : `Create for ${gtSelectedUsers.length || 0} user${gtSelectedUsers.length !== 1 ? 's' : ''}`}
                                 </button>
                             </div>
                         </form>

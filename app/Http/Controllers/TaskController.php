@@ -213,7 +213,51 @@ class TaskController extends Controller
         return redirect()->route('tasks.index')->with('success', $message);
     }
 
-    public function edit(Task $task)
+    public function storeGroup(Request $request)
+    {
+        /** @var User $authUser */
+        $authUser = Auth::user();
+        abort_if(!$authUser->isAdmin(), 403, 'Only admins can create group tasks.');
+
+        $request->validate([
+            'tasks'              => 'required|array|min:1',
+            'tasks.*.title'      => 'required|string|max:255',
+            'tasks.*.description' => 'nullable|string',
+            'tasks.*.priority'   => 'required|in:low,medium,high',
+            'tasks.*.due_date'   => 'nullable|date',
+            'tasks.*.due_time'   => 'nullable|date_format:H:i',
+            'tasks.*.project_id' => 'required|exists:projects,id',
+            'tasks.*.assign_to'  => 'required|exists:users,id',
+            'tasks.*.status'     => 'nullable|in:todo,in_progress,done',
+        ]);
+
+        $projectId = null;
+        foreach ($request->input('tasks') as $taskData) {
+            /** @var User $targetUser */
+            $targetUser = User::findOrFail($taskData['assign_to']);
+
+            $task = $targetUser->tasks()->create([
+                'title'       => $taskData['title'],
+                'description' => $taskData['description'] ?? null,
+                'priority'    => $taskData['priority'],
+                'status'      => $taskData['status'] ?? 'todo',
+                'due_date'    => $taskData['due_date'] ?: null,
+                'due_time'    => $taskData['due_time'] ?: null,
+                'project_id'  => (int) $taskData['project_id'],
+            ]);
+
+            $projectId = $task->project_id;
+
+            TaskNotification::create([
+                'user_id' => $targetUser->id,
+                'task_id' => $task->id,
+                'type'    => 'assigned',
+            ]);
+        }
+
+        $count = count($request->input('tasks'));
+        return back()->with('success', "Group task created for {$count} user" . ($count !== 1 ? 's' : '') . '.');
+    }
     {
         /** @var User $user */
         $user = Auth::user();
