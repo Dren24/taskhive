@@ -136,7 +136,7 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
 
                         <form onSubmit={submit} className="p-6 space-y-5">
                             {/* Title */}
-                            {canEdit && (
+                            {isAdmin ? (
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                                         Task Title <span className="text-rose-400">*</span>
@@ -153,10 +153,18 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                     />
                                     {errors.title && <p className="text-rose-500 text-xs mt-1.5 flex items-center gap-1"><span>⚠</span>{errors.title}</p>}
                                 </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Task Title</label>
+                                    <div className="w-full border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-700 bg-gray-50 cursor-not-allowed select-none">
+                                        {data.title}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the title.</p>
+                                </div>
                             )}
 
                             {/* Description */}
-                            {canEdit && (
+                            {isAdmin ? (
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
                                         Description
@@ -170,6 +178,14 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                             focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent
                                             hover:border-gray-300 transition bg-gray-50/50 resize-none"
                                     />
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Description</label>
+                                    <div className="w-full border border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-500 bg-gray-50 min-h-[80px] cursor-not-allowed select-none">
+                                        {data.description || <span className="italic text-gray-400">No description</span>}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the description.</p>
                                 </div>
                             )}
 
@@ -197,7 +213,7 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                             </div>
 
                             {/* Priority — segmented buttons */}
-                            {canEdit && (
+                            {isAdmin ? (
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                                         Priority
@@ -217,6 +233,22 @@ export default function TaskEdit({ task, projects, users, isAdmin, authId }) {
                                             </button>
                                         ))}
                                     </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Priority</label>
+                                    <div className="grid grid-cols-3 gap-2 opacity-50 pointer-events-none">
+                                        {PRIORITIES.map(p => (
+                                            <div
+                                                key={p.value}
+                                                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 text-sm font-semibold capitalize
+                                                    ${data.priority === p.value ? p.activeClass : 'border-gray-100 text-gray-300'}`}
+                                            >
+                                                <span>{p.icon}</span> {p.label}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-1">Only admins can change the priority.</p>
                                 </div>
                             )}
 

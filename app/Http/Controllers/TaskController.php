@@ -334,10 +334,7 @@ class TaskController extends Controller
             ]);
         } else {
             $validated = $request->validate([
-                'title'       => 'required|string|max:255',
-                'description' => 'nullable|string',
-                'priority'    => 'required|in:low,medium,high',
-                'status'      => 'required|in:todo,in_progress,done',
+                'status' => 'required|in:todo,in_progress,done',
             ]);
         }
 
