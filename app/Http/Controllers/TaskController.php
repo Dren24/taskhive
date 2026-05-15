@@ -330,6 +330,7 @@ class TaskController extends Controller
         }
 
         $task->increment('submissions_count');
+        $task->update(['status' => 'done']);
 
         // Notify admins of submission
         $admins = User::where('role', 'admin')->get();
