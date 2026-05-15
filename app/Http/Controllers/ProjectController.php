@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\ProjectNotification;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -79,6 +80,12 @@ class ProjectController extends Controller
         // Notify all selected members
         $members = User::whereIn('id', $data['user_ids'])->get();
         foreach ($members as $member) {
+            ProjectNotification::create([
+                'user_id'    => $member->id,
+                'project_id' => $project->id,
+                'type'       => 'project_added',
+            ]);
+
             Mail::raw(
                 "Hi {$member->name},\n\n"
                 . "You have been added to a new project in TaskHive.\n\n"
@@ -114,7 +121,7 @@ class ProjectController extends Controller
         $project->load('comments.user');
         $projectOptions = $user->isAdmin()
             ? Project::orderBy('name')->get(['id', 'name'])
-            : Project::where('user_id', $user->id)->orderBy('name')->get(['id', 'name']);
+            : $user->allProjects()->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('Projects/Show', [
             'project'  => ['id' => $project->id, 'name' => $project->name, 'color' => $project->color],
@@ -153,6 +160,15 @@ class ProjectController extends Controller
         ]);
 
         $project->update($data);
+
+        $members = $project->members()->get(['users.id']);
+        foreach ($members as $member) {
+            ProjectNotification::create([
+                'user_id'    => $member->id,
+                'project_id' => $project->id,
+                'type'       => 'project_updated',
+            ]);
+        }
 
         return back()->with('success', 'Project updated.');
     }

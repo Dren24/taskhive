@@ -15,11 +15,34 @@ use Inertia\Inertia;
 
 class TaskController extends Controller
 {
-    private function userProjects()
+    private function userProjects(?User $user = null)
     {
         /** @var User $user */
-        $user = Auth::user();
-        return $user->projects()->orderBy('name')->get();
+        $user = $user ?? Auth::user();
+
+        if ($user->isAdmin()) {
+            return Project::orderBy('name')->get();
+        }
+
+        return Project::query()
+            ->where('user_id', $user->id)
+            ->orWhereHas('members', fn($q) => $q->where('users.id', $user->id))
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function hasProjectAccess(User $user, int $projectId): bool
+    {
+        if ($user->isAdmin()) {
+            return Project::where('id', $projectId)->exists();
+        }
+
+        return Project::where('id', $projectId)
+            ->where(function ($q) use ($user) {
+                $q->where('user_id', $user->id)
+                    ->orWhereHas('members', fn($q2) => $q2->where('users.id', $user->id));
+            })
+            ->exists();
     }
 
     public function index()
@@ -84,7 +107,7 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403, 'Only admins can create tasks.');
-        $projects = $this->userProjects();
+        $projects = $this->userProjects($user);
         $users = $user->isAdmin()
             ? User::where('role', 'user')->orderBy('name')->get()
             : collect();
@@ -110,7 +133,7 @@ class TaskController extends Controller
             'tasks.*.status'           => 'required|in:todo,in_progress,done',
             'tasks.*.due_date'         => 'required|date',
             'tasks.*.due_time'         => 'nullable|date_format:H:i',
-            'tasks.*.project_id'       => 'nullable|exists:projects,id',
+            'tasks.*.project_id'       => 'required|exists:projects,id',
             'tasks.*.assign_to'        => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
             'tasks.*.max_submissions'  => 'nullable|integer|min:1',
             'files'                    => 'nullable|array',
@@ -126,6 +149,9 @@ class TaskController extends Controller
                 ? User::findOrFail($taskData['assign_to'])
                 : $authUser;
 
+            $projectId = (int) $taskData['project_id'];
+            abort_unless($this->hasProjectAccess($targetUser, $projectId), 422, 'Choose a project assigned to the user.');
+
             $task = $targetUser->tasks()->create([
                 'title'           => $taskData['title'],
                 'description'     => $taskData['description'] ?? null,
@@ -133,14 +159,15 @@ class TaskController extends Controller
                 'status'          => $taskData['status'],
                 'due_date'        => $taskData['due_date'] ?: null,
                 'due_time'        => $taskData['due_time'] ?: null,
-                'project_id'      => $taskData['project_id'] ?: null,
+                'project_id'      => $projectId,
                 'max_submissions' => $taskData['max_submissions'] ?? null,
             ]);
 
             // Handle file attachments uploaded with this task
             if ($request->hasFile("files.{$index}")) {
                 foreach ($request->file("files.{$index}") as $file) {
-                    $path = $file->store("task-attachments/{$task->id}", 'local');
+                    $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+                    $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
                     $task->attachments()->create([
                         'user_id'       => $authUser->id,
                         'original_name' => $file->getClientOriginalName(),
@@ -250,7 +277,7 @@ class TaskController extends Controller
                 'status'          => 'required|in:todo,in_progress,done',
                 'due_date'        => 'nullable|date',
                 'due_time'        => 'nullable|date_format:H:i',
-                'project_id'      => 'nullable|exists:projects,id',
+                'project_id'      => 'required|exists:projects,id',
                 'max_submissions' => 'nullable|integer|min:1',
                 'user_id'         => 'nullable|exists:users,id',
             ]);
@@ -261,6 +288,14 @@ class TaskController extends Controller
                 'priority'    => 'required|in:low,medium,high',
                 'status'      => 'required|in:todo,in_progress,done',
             ]);
+        }
+
+        if ($user->isAdmin()) {
+            $targetUser = !empty($validated['user_id'])
+                ? User::findOrFail($validated['user_id'])
+                : $task->user;
+            $projectId = (int) $validated['project_id'];
+            abort_unless($this->hasProjectAccess($targetUser, $projectId), 422, 'Choose a project assigned to the user.');
         }
 
         $task->update($validated);
@@ -304,10 +339,7 @@ class TaskController extends Controller
                 'project_id' => 'required|exists:projects,id',
             ]);
 
-            $ownsProject = Project::where('id', $validated['project_id'])
-                ->where('user_id', $user->id)
-                ->exists();
-            abort_unless($ownsProject, 422, 'Choose one of your project folders.');
+            abort_unless($this->hasProjectAccess($user, (int) $validated['project_id']), 422, 'Choose one of your project folders.');
 
             $payload['project_id'] = $validated['project_id'];
         }
@@ -384,10 +416,17 @@ class TaskController extends Controller
             return back()->with('error', 'Submission limit reached for this task.');
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'comment' => 'nullable|string|max:2000',
             'file'    => 'nullable|file|max:20480', // 20 MB max
+            'project_id' => 'nullable|exists:projects,id',
         ]);
+
+        if (!$task->project_id) {
+            abort_unless(!empty($validated['project_id']), 422, 'Select a project folder for this submission.');
+            abort_unless($this->hasProjectAccess($user, (int) $validated['project_id']), 422, 'Choose one of your project folders.');
+            $task->update(['project_id' => (int) $validated['project_id']]);
+        }
 
         $filePath     = null;
         $originalName = null;
@@ -396,7 +435,8 @@ class TaskController extends Controller
 
         if ($request->hasFile('file')) {
             $file         = $request->file('file');
-            $filePath     = $file->store('task-submissions', 'public');
+            $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+            $filePath     = $file->store("{$projectFolder}/tasks/{$task->id}/submissions", 'public');
             $originalName = $file->getClientOriginalName();
             $mimeType     = $file->getMimeType();
             $size         = $file->getSize();

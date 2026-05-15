@@ -58,12 +58,13 @@ function fileIcon(name) {
 }
 
 /* ─── Submission Modal ───────────────────────────────────────────────── */
-function SubmitModal({ task, onClose }) {
+function SubmitModal({ task, projectOptions = [], onClose }) {
     const [file, setFile] = useState(null);
     const [comment, setComment] = useState('');
     const [dragging, setDragging] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [projectId, setProjectId] = useState(task.project_id || (projectOptions?.[0]?.id ?? ''));
     const fileRef = useRef();
 
     const isResubmit = (task.submissions_count || 0) > 0;
@@ -85,10 +86,15 @@ function SubmitModal({ task, onClose }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (submitting) return;
+        if (!task.project_id && !projectId) {
+            alert('Please select a project folder for this submission.');
+            return;
+        }
 
         const formData = new FormData();
         if (comment.trim()) formData.append('comment', comment.trim());
         if (file) formData.append('file', file);
+        if (!task.project_id && projectId) formData.append('project_id', projectId);
 
         setSubmitting(true);
         setProgress(0);
@@ -202,6 +208,26 @@ function SubmitModal({ task, onClose }) {
                                 {comment.length}/{MAX_COMMENT}
                             </div>
                         </div>
+
+                        {!task.project_id && (
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Project Folder <span className="text-rose-400">*</span>
+                                </label>
+                                <select
+                                    value={projectId}
+                                    onChange={(e) => setProjectId(e.target.value)}
+                                    required
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                                >
+                                    <option value="">Select project</option>
+                                    {projectOptions.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-400 mt-1">Choose an assigned project folder for this submission.</p>
+                            </div>
+                        )}
 
                         {/* Progress bar */}
                         {submitting && (
@@ -584,7 +610,11 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
             </div>
 
             {submitModalTask && (
-                <SubmitModal task={submitModalTask} onClose={() => setSubmitModalTask(null)} />
+                <SubmitModal
+                    task={submitModalTask}
+                    projectOptions={projectOptions}
+                    onClose={() => setSubmitModalTask(null)}
+                />
             )}
 
             {reopenTask && (

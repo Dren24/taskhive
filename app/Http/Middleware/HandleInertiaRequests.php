@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ProjectNotification;
 use App\Models\Task;
 use App\Models\TaskNotification;
 use Illuminate\Http\Request;
@@ -86,24 +87,79 @@ class HandleInertiaRequests extends Middleware
                     ]);
                 }
 
-                return TaskNotification::with('task')
+                $taskNotifications = TaskNotification::with('task')
                     ->where('user_id', $user->id)
                     ->latest()
                     ->take(20)
                     ->get()
+                    ->map(function ($n) {
+                        $dueDate = $n->task?->due_date?->format('M j, Y');
+                        $message = match ($n->type) {
+                            'reopen_request' => 'Reopen request received',
+                            'overdue' => $dueDate ? "Overdue since {$dueDate}" : 'Overdue task',
+                            'due_soon' => $dueDate ? "Due {$dueDate}" : 'Due soon',
+                            'submission' => 'New submission received',
+                            'file_upload' => 'New file uploaded',
+                            'assigned' => 'Assigned to you',
+                            default => 'Task updated',
+                        };
+
+                        return [
+                            'kind'       => 'task',
+                            'id'         => $n->id,
+                            'type'       => $n->type,
+                            'read'       => $n->read_at !== null,
+                            'created_at' => $n->created_at,
+                            'title'      => $n->task?->title ?? 'Task update',
+                            'message'    => $message,
+                            'url'        => $n->task
+                                ? route('tasks.edit', $n->task->id)
+                                : route('tasks.index'),
+                        ];
+                    });
+
+                $projectNotifications = ProjectNotification::with('project')
+                    ->where('user_id', $user->id)
+                    ->latest()
+                    ->take(20)
+                    ->get()
+                    ->map(function ($n) {
+                        $message = match ($n->type) {
+                            'project_added' => 'Added to project',
+                            'project_updated' => 'Project details updated',
+                            default => 'Project update',
+                        };
+
+                        return [
+                            'kind'       => 'project',
+                            'id'         => $n->id,
+                            'type'       => $n->type,
+                            'read'       => $n->read_at !== null,
+                            'created_at' => $n->created_at,
+                            'title'      => $n->project?->name ?? 'Project',
+                            'message'    => $message,
+                            'url'        => $n->project
+                                ? route('projects.show', $n->project->id)
+                                : route('projects.index'),
+                        ];
+                    });
+
+                return $taskNotifications
+                    ->merge($projectNotifications)
+                    ->sortByDesc('created_at')
+                    ->take(20)
+                    ->values()
                     ->map(fn($n) => [
-                        'id'      => $n->id,
-                        'type'    => $n->type,
-                        'read'    => $n->read_at !== null,
-                        'created_at' => $n->created_at->diffForHumans(),
-                        'task'    => [
-                            'id'       => $n->task->id,
-                            'title'    => $n->task->title,
-                            'due_date' => $n->task->due_date?->format('M j, Y'),
-                        ],
+                        'kind'       => $n['kind'],
+                        'id'         => $n['id'],
+                        'type'       => $n['type'],
+                        'read'       => $n['read'],
+                        'created_at' => $n['created_at']->diffForHumans(),
+                        'title'      => $n['title'],
+                        'message'    => $n['message'],
+                        'url'        => $n['url'],
                     ]);
             },
         ];
     }
 }
-

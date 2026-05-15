@@ -4,6 +4,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProjectNotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ProjectCommentController;
 use App\Http\Controllers\ProjectController;
@@ -52,10 +53,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('admin/tasks/{task}', [AdminController::class, 'updateTask'])->name('admin.tasks.update');
     Route::delete('admin/tasks/{task}', [AdminController::class, 'destroyTask'])->name('admin.tasks.destroy');
     Route::patch('admin/tasks/{task}/status', [AdminController::class, 'updateTaskStatus'])->name('admin.tasks.status');
+    Route::delete('admin/users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
 
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::patch('project-notifications/{notification}/read', [ProjectNotificationController::class, 'markRead'])->name('project-notifications.read');
 });
 
 require __DIR__.'/auth.php';
-

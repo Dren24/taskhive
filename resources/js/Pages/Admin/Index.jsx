@@ -56,6 +56,63 @@ function ConfirmModal({ title, message, confirmLabel, confirmCls, onConfirm, onC
     );
 }
 
+function UserDeleteModal({ user, step, verifyText, setVerifyText, onCancel, onContinue, onConfirm }) {
+    if (!user) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+            <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 w-full max-w-md animate-modal">
+                {step === 1 ? (
+                    <>
+                        <h3 className="text-base font-bold text-gray-900 mb-1">Delete user account?</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                            You are about to permanently delete <span className="font-semibold text-gray-800">{user.name}</span>.
+                            This removes all related tasks, submissions, comments, and files.
+                        </p>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={onCancel}
+                                className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button onClick={onContinue}
+                                className="px-4 py-2 text-sm font-semibold rounded-xl text-white bg-rose-500 hover:bg-rose-600 transition">
+                                Continue
+                            </button>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <h3 className="text-base font-bold text-gray-900 mb-1">Second-step verification</h3>
+                        <p className="text-sm text-gray-500 mb-4">
+                            Type <span className="font-semibold text-gray-900">DELETE</span> to confirm removal of
+                            <span className="font-semibold text-gray-800"> {user.email}</span>.
+                        </p>
+                        <input
+                            value={verifyText}
+                            onChange={(e) => setVerifyText(e.target.value)}
+                            placeholder="Type DELETE to confirm"
+                            className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-300 transition mb-4"
+                        />
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={onCancel}
+                                className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+                                Cancel
+                            </button>
+                            <button
+                                onClick={onConfirm}
+                                disabled={verifyText !== 'DELETE'}
+                                className="px-4 py-2 text-sm font-semibold rounded-xl text-white bg-rose-500 hover:bg-rose-600 transition disabled:opacity-50"
+                            >
+                                Delete User
+                            </button>
+                        </div>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}
+
 // ─── Edit Task Modal ────────────────────────────────────────────────────────
 
 function EditTaskModal({ task, onClose }) {
@@ -173,13 +230,16 @@ function EditTaskModal({ task, onClose }) {
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export default function AdminIndex({ users, tasks, stats }) {
+export default function AdminIndex({ users, tasks, stats, auditLogs = [] }) {
     const { props } = usePage();
     const flash = props.flash || {};
     const [selectedUser, setSelectedUser] = useState(null);
     const [editTask, setEditTask] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [closeConfirm, setCloseConfirm] = useState(null);
+    const [deleteUser, setDeleteUser] = useState(null);
+    const [deleteUserStep, setDeleteUserStep] = useState(1);
+    const [deleteUserText, setDeleteUserText] = useState('');
 
     const filtered = selectedUser ? tasks.filter(t => t.user?.id === selectedUser) : tasks;
 
@@ -197,6 +257,24 @@ export default function AdminIndex({ users, tasks, stats }) {
 
     const reopenTask = (task) => {
         router.patch(route('admin.tasks.status', task.id), { action: 'reopen' }, { preserveScroll: true });
+    };
+
+    const startUserDelete = (user) => {
+        setDeleteUser(user);
+        setDeleteUserStep(1);
+        setDeleteUserText('');
+    };
+    const continueUserDelete = () => setDeleteUserStep(2);
+    const cancelUserDelete = () => {
+        setDeleteUser(null);
+        setDeleteUserStep(1);
+        setDeleteUserText('');
+    };
+    const confirmUserDelete = () => {
+        router.delete(route('admin.users.destroy', deleteUser.id), {
+            preserveScroll: true,
+            onFinish: () => cancelUserDelete(),
+        });
     };
 
     const statCards = [
@@ -247,6 +325,89 @@ export default function AdminIndex({ users, tasks, stats }) {
                             <span className="text-xs text-gray-500 mt-1 block">{c.label}</span>
                         </div>
                     ))}
+                </div>
+
+                {/* User management + audit log */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-bold text-gray-900">Admin Account Management</h2>
+                                <p className="text-xs text-gray-500">Delete user accounts with verified confirmation.</p>
+                            </div>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className="text-gray-400 font-semibold uppercase tracking-wide border-b border-gray-100">
+                                        <th className="text-left py-3 px-4">User</th>
+                                        <th className="text-center py-3">Role</th>
+                                        <th className="text-center py-3">Projects</th>
+                                        <th className="text-center py-3">Tasks</th>
+                                        <th className="text-right py-3 px-4">Last Active</th>
+                                        <th className="text-right py-3 pr-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(users || []).length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="py-8 text-center text-gray-400">No users found.</td>
+                                        </tr>
+                                    ) : (
+                                        users.map(u => (
+                                            <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                                                <td className="py-3 px-4">
+                                                    <div className="min-w-0">
+                                                        <p className="font-semibold text-gray-800">{u.name}</p>
+                                                        <p className="text-gray-400 truncate">{u.email}</p>
+                                                    </div>
+                                                </td>
+                                                <td className="text-center">
+                                                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${u.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                        {u.role}
+                                                    </span>
+                                                </td>
+                                                <td className="text-center text-gray-600">{u.projects_count}</td>
+                                                <td className="text-center text-gray-600">{u.tasks_count}</td>
+                                                <td className="text-right pr-4 text-gray-400">{u.last_active}</td>
+                                                <td className="text-right pr-4">
+                                                    <button onClick={() => startUserDelete(u)}
+                                                        className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
+                                                        🗑️ Delete
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <h2 className="text-sm font-bold text-gray-900 mb-3">Audit Log</h2>
+                        {auditLogs.length === 0 ? (
+                            <p className="text-sm text-gray-400 text-center py-8">No audit events yet.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {auditLogs.map(log => (
+                                    <div key={log.id} className="flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-bold">
+                                            🛡️
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-gray-700">
+                                                <span className="font-semibold text-gray-900">{log.actor}</span>{' '}
+                                                <span className="text-gray-500">deleted</span>{' '}
+                                                <span className="font-semibold text-gray-800">{log.target_name}</span>
+                                            </p>
+                                            <p className="text-[11px] text-gray-400">{log.target_email} · {log.created_at}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex gap-6">
@@ -383,7 +544,18 @@ export default function AdminIndex({ users, tasks, stats }) {
                     onCancel={() => setCloseConfirm(null)}
                 />
             )}
+
+            {deleteUser && (
+                <UserDeleteModal
+                    user={deleteUser}
+                    step={deleteUserStep}
+                    verifyText={deleteUserText}
+                    setVerifyText={setDeleteUserText}
+                    onCancel={cancelUserDelete}
+                    onContinue={continueUserDelete}
+                    onConfirm={confirmUserDelete}
+                />
+            )}
         </AppLayout>
     );
 }
-

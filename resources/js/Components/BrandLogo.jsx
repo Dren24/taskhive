@@ -5,6 +5,8 @@ export default function BrandLogo({
     subtitle = null,
     iconSize = 'w-12 h-12',
     labelSize = 'text-xl',
+    labelClass = 'text-gray-900',
+    subtitleClass = 'text-gray-500',
     compact = false,
 }) {
     const iconMarginClass = compact ? '' : 'mb-3';
@@ -18,10 +20,10 @@ export default function BrandLogo({
                 <span className="text-white font-extrabold tracking-tight">TH</span>
             </div>
             {compact
-                ? <span className={`${labelSize} font-bold text-gray-900 tracking-tight`.trim()}>TaskHive</span>
-                : <h1 className={`${labelSize} font-bold text-gray-900`.trim()}>TaskHive</h1>
+                ? <span className={`${labelSize} font-bold ${labelClass} tracking-tight`.trim()}>TaskHive</span>
+                : <h1 className={`${labelSize} font-bold ${labelClass}`.trim()}>TaskHive</h1>
             }
-            {!compact && subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+            {!compact && subtitle && <p className={`text-sm ${subtitleClass} mt-1`}>{subtitle}</p>}
         </div>
     );
 }

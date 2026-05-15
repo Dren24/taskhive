@@ -52,6 +52,14 @@ function buildCalendar(year, month) {
     return cells;
 }
 
+function heatClass(count) {
+    if (!count) return '';
+    if (count <= 1) return 'bg-purple-50';
+    if (count <= 3) return 'bg-purple-100';
+    if (count <= 6) return 'bg-purple-200';
+    return 'bg-purple-300';
+}
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -115,17 +123,20 @@ function TaskPopup({ tasks, onClose, anchorRef }) {
 }
 
 /* ── Calendar day cell ─────────────────────────────────────────────── */
-function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
+function CalendarCell({ day, isToday, tasks, selected, onSelect, activityCount }) {
     const cellRef = useRef(null);
     const hasTasks = tasks && tasks.length > 0;
+    const isSelectable = hasTasks || (activityCount && activityCount > 0);
+    const heat = heatClass(activityCount);
 
     return (
         <div ref={cellRef} className="relative">
             <button
-                onClick={() => hasTasks && onSelect(day, cellRef)}
+                onClick={() => isSelectable && onSelect(day, cellRef)}
                 className={`w-full aspect-square flex flex-col items-center justify-start pt-1 rounded-lg text-xs transition
-                    ${!day ? '' : hasTasks ? 'hover:bg-purple-50 cursor-pointer' : 'cursor-default'}
-                    ${selected ? 'bg-purple-50' : ''}`}
+                    ${!day ? '' : isSelectable ? 'hover:bg-purple-50 cursor-pointer' : 'cursor-default'}
+                    ${heat}
+                    ${selected ? 'ring-2 ring-purple-300 bg-purple-50' : ''}`}
             >
                 {day && (
                     <>
@@ -155,7 +166,7 @@ function CalendarCell({ day, isToday, tasks, selected, onSelect }) {
 }
 
 /* ── Calendar panel (shared for both admin and regular users) ─────── */
-function CalendarPanel({ calendarTasks }) {
+function CalendarPanel({ calendarTasks, activityLogs = [] }) {
     const today = new Date();
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -174,6 +185,16 @@ function CalendarPanel({ calendarTasks }) {
         }
     });
 
+    const activityByDay = {};
+    (activityLogs || []).forEach(log => {
+        if (!log?.date) return;
+        const d = new Date(log.date + 'T00:00:00');
+        if (d.getFullYear() === calYear && d.getMonth() === calMonth) {
+            const day = d.getDate();
+            activityByDay[day] = (activityByDay[day] || 0) + 1;
+        }
+    });
+
     const prevMonth = () => {
         setSelectedDay(null);
         if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
@@ -185,6 +206,13 @@ function CalendarPanel({ calendarTasks }) {
         else setCalMonth(m => m + 1);
     };
     const handleDaySelect = (day) => setSelectedDay(prev => prev === day ? null : day);
+
+    const selectedDate = selectedDay
+        ? `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+        : null;
+    const dayLogs = selectedDate
+        ? (activityLogs || []).filter(l => l.date === selectedDate)
+        : [];
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -212,9 +240,46 @@ function CalendarPanel({ calendarTasks }) {
                         <CalendarCell key={i} day={day} isToday={isToday}
                             tasks={day ? (tasksByDay[day] || null) : null}
                             selected={selectedDay === day}
+                            activityCount={day ? (activityByDay[day] || 0) : 0}
                             onSelect={handleDaySelect} />
                     );
                 })}
+            </div>
+
+            <div className="mt-5 border-t border-gray-100 pt-4">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wide">Daily Activity Logs</h3>
+                    {selectedDate && (
+                        <span className="text-xs text-gray-400">{selectedDate}</span>
+                    )}
+                </div>
+                {!selectedDate ? (
+                    <p className="text-xs text-gray-400">Select a date to review system activity.</p>
+                ) : dayLogs.length === 0 ? (
+                    <p className="text-xs text-gray-400">No activity recorded for this day.</p>
+                ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        {dayLogs.map(log => (
+                            <div key={log.id} className="flex items-start gap-3 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2">
+                                <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">
+                                    {log.type?.includes('project') ? '📁'
+                                        : log.type?.includes('submission') ? '📤'
+                                            : log.type?.includes('file') ? '📎'
+                                                : log.type?.includes('comment') ? '💬'
+                                                    : '✅'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-gray-700">
+                                        <span className="font-semibold text-gray-900">{log.user_name}</span>{' '}
+                                        <span className="text-gray-500">· {log.time}</span>
+                                    </p>
+                                    <p className="text-xs text-gray-800 font-medium truncate">{log.title}</p>
+                                    {log.meta && <p className="text-[11px] text-gray-400 truncate">{log.meta}</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -273,9 +338,15 @@ function RecentTasksPanel({ tasks }) {
 
 /* ── Admin: activity feed + user intelligence right panel ───────────── */
 const ACTION_STYLES = {
-    created:   { label: 'Created',   cls: 'bg-emerald-100 text-emerald-700' },
-    completed: { label: 'Completed', cls: 'bg-blue-100 text-blue-700' },
-    updated:   { label: 'Updated',   cls: 'bg-purple-100 text-purple-700' },
+    task_created:   { label: 'Task Created', cls: 'bg-emerald-100 text-emerald-700' },
+    task_updated:   { label: 'Task Updated', cls: 'bg-purple-100 text-purple-700' },
+    task_completed: { label: 'Task Completed', cls: 'bg-blue-100 text-blue-700' },
+    submission:     { label: 'Submission', cls: 'bg-sky-100 text-sky-700' },
+    file_upload:    { label: 'File Upload', cls: 'bg-amber-100 text-amber-700' },
+    task_comment:   { label: 'Task Comment', cls: 'bg-indigo-100 text-indigo-700' },
+    project_comment:{ label: 'Project Comment', cls: 'bg-violet-100 text-violet-700' },
+    project_created:{ label: 'Project Created', cls: 'bg-emerald-100 text-emerald-700' },
+    project_updated:{ label: 'Project Updated', cls: 'bg-purple-100 text-purple-700' },
 };
 
 function Avatar({ name, size = 'w-7 h-7', textSize = 'text-xs' }) {
@@ -301,23 +372,24 @@ function ActivityFeed({ feed }) {
             {feed && feed.length > 0 ? (
                 <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
                     {feed.map((item, i) => {
-                        const style = ACTION_STYLES[item.type] || ACTION_STYLES.updated;
+                        const style = ACTION_STYLES[item.type] || ACTION_STYLES.task_updated;
                         return (
                             <div key={i} className="flex items-start gap-3">
                                 <Avatar name={item.user_name} />
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs text-gray-700 leading-snug">
                                         <span className="font-semibold text-gray-900">{item.user_name}</span>
-                                        {' '}{item.type === 'created' ? 'created' : item.type === 'completed' ? 'completed' : 'updated'}{' '}
-                                        <Link href={route('tasks.edit', item.id)}
-                                            className="font-medium text-purple-700 hover:underline truncate">
-                                            {item.title}
-                                        </Link>
+                                        {' '}
+                                        <span className="text-gray-500">{style.label.toLowerCase()}</span>{' '}
+                                        <span className="font-medium text-purple-700 truncate">{item.title}</span>
                                     </p>
                                     <div className="flex items-center gap-2 mt-1">
                                         <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${style.cls}`}>{style.label}</span>
-                                        <span className="text-[11px] text-gray-400">{item.updated_at}</span>
+                                        <span className="text-[11px] text-gray-400">{item.occurred_at}</span>
                                     </div>
+                                    {item.meta && (
+                                        <p className="text-[11px] text-gray-400 mt-1 truncate">{item.meta}</p>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -346,6 +418,7 @@ function UserIntelligence({ users }) {
                             <th className="text-center pb-2">Total</th>
                             <th className="text-center pb-2">Done</th>
                             <th className="text-center pb-2">Pending</th>
+                            <th className="text-center pb-2">Projects</th>
                             <th className="text-right pb-2 pr-1">Last Active</th>
                         </tr>
                     </thead>
@@ -367,11 +440,15 @@ function UserIntelligence({ users }) {
                                     <td className="py-2 text-center font-bold text-gray-700">{u.total}</td>
                                     <td className="py-2 text-center font-semibold text-emerald-600">{u.done}</td>
                                     <td className="py-2 text-center font-semibold text-amber-600">{u.pending}</td>
+                                    <td className="py-2 text-center text-gray-500 text-[11px]">
+                                        {u.projects?.length ? u.projects.slice(0, 2).map(p => p.name).join(', ') : '—'}
+                                        {u.projects?.length > 2 && <span className="text-gray-400"> +{u.projects.length - 2}</span>}
+                                    </td>
                                     <td className="py-2 text-right pr-1 text-gray-400">{u.last_active}</td>
                                 </tr>
                                 {expanded === u.id && (
                                     <tr key={`${u.id}-exp`} className="bg-purple-50">
-                                        <td colSpan={5} className="px-3 py-3">
+                                        <td colSpan={6} className="px-3 py-3">
                                             <div className="flex flex-wrap gap-3">
                                                 <div className="flex-1 min-w-[120px] bg-white rounded-xl p-3 border border-purple-100 text-center">
                                                     <p className="text-lg font-bold text-gray-900">{u.total}</p>
@@ -402,6 +479,29 @@ function UserIntelligence({ users }) {
                                                     <p className="text-[10px] text-gray-300 mt-1 capitalize">{u.role}</p>
                                                 </div>
                                             </div>
+                                            <div className="mt-3">
+                                                <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Recent Task History</p>
+                                                {u.recent_tasks?.length ? (
+                                                    <div className="space-y-1">
+                                                        {u.recent_tasks.map(t => (
+                                                            <div key={t.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
+                                                                <span className="text-xs font-medium text-gray-800 truncate">{t.title}</span>
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                                                                    t.status === 'done'
+                                                                        ? 'bg-emerald-100 text-emerald-700'
+                                                                        : t.status === 'in_progress'
+                                                                            ? 'bg-purple-100 text-purple-700'
+                                                                            : 'bg-gray-100 text-gray-600'
+                                                                }`}>
+                                                                    {t.status.replace('_', ' ')}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-400">No recent tasks.</p>
+                                                )}
+                                            </div>
                                             <Link href={route('tasks.index')}
                                                 className="inline-flex items-center gap-1 mt-2 text-xs text-purple-600 hover:text-purple-800 font-medium transition">
                                                 View all tasks →
@@ -421,14 +521,57 @@ function UserIntelligence({ users }) {
 }
 
 /* ── Main dashboard component ─────────────────────────────────────── */
-export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminStats, activityFeed, userIntelligence }) {
+export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminStats, activityFeed, userIntelligence, activityLogs = [] }) {
     const { auth } = usePage().props;
 
+    const trendBadge = (trend) => {
+        if (!trend) return null;
+        const up = trend.direction === 'up';
+        const flat = trend.direction === 'flat';
+        const cls = flat ? 'bg-gray-100 text-gray-500' : up ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700';
+        const icon = flat ? '■' : up ? '▲' : '▼';
+        return (
+            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${cls}`}>
+                {icon} {trend.value}%
+            </span>
+        );
+    };
+
     const adminMetrics = [
-        { label: 'Total Users',      value: adminStats?.total_users ?? 0,     icon: '👥', color: 'text-indigo-600',  bg: 'bg-indigo-50' },
-        { label: 'Total Projects',   value: adminStats?.total_projects ?? 0,  icon: '📁', color: 'text-purple-600',  bg: 'bg-purple-50' },
-        { label: 'Completed Tasks',  value: adminStats?.completed_tasks ?? 0, icon: '✅', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Overdue Tasks',    value: adminStats?.overdue_tasks ?? 0,   icon: '⚠️', color: 'text-rose-600',    bg: 'bg-rose-50' },
+        {
+            label: 'Total Users',
+            value: adminStats?.total_users ?? 0,
+            icon: '👥',
+            color: 'text-indigo-600',
+            bg: 'bg-indigo-50',
+            trend: adminStats?.trends?.users,
+        },
+        {
+            label: 'Total Projects',
+            value: adminStats?.total_projects ?? 0,
+            icon: '📁',
+            color: 'text-purple-600',
+            bg: 'bg-purple-50',
+            trend: adminStats?.trends?.projects,
+            sub: `${adminStats?.active_projects ?? 0} active`,
+        },
+        {
+            label: 'Completed Tasks',
+            value: adminStats?.completed_tasks ?? 0,
+            icon: '✅',
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+            trend: adminStats?.trends?.completed,
+        },
+        {
+            label: 'Pending / Overdue',
+            value: adminStats?.pending_tasks ?? 0,
+            icon: '⚠️',
+            color: 'text-rose-600',
+            bg: 'bg-rose-50',
+            trend: adminStats?.trends?.pending,
+            sub: `${adminStats?.overdue_tasks ?? 0} overdue`,
+        },
     ];
 
     const userMetrics = [
@@ -455,31 +598,33 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
                 {isAdmin ? (
                     <div className="rounded-2xl p-6 text-white relative overflow-hidden"
                         style={{ background: 'linear-gradient(135deg,#5b21b6,#7c3aed,#9333ea)' }}>
-                        {/* Decorative circles */}
                         <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{ background: 'white' }} />
                         <div className="absolute -bottom-10 -right-4 w-28 h-28 rounded-full opacity-10" style={{ background: 'white' }} />
 
-                        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                             <div>
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2 mb-2">
                                     <span className="text-xs font-bold bg-white/20 px-2.5 py-0.5 rounded-full tracking-wide uppercase">
                                         🛡️ Admin Overview
                                     </span>
                                 </div>
-                                <h1 className="text-xl font-bold mt-1">System Dashboard</h1>
-                                <p className="text-purple-200 text-sm mt-0.5">Full visibility across all users, projects, and tasks.</p>
+                                <h1 className="text-xl font-bold">System-wide Dashboard</h1>
+                                <p className="text-purple-200 text-sm mt-1">Enterprise visibility across users, projects, and tasks.</p>
                             </div>
-                            {/* Quick system-wide summary inline */}
-                            <div className="flex flex-wrap gap-4 sm:gap-6 text-white/90 text-sm">
-                                <div className="text-center">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center text-white/90">
+                                <div>
+                                    <p className="text-2xl font-bold text-white">{adminStats?.total_users ?? 0}</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">Total Users</p>
+                                </div>
+                                <div>
+                                    <p className="text-2xl font-bold text-white">{adminStats?.active_projects ?? 0}</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">Active Projects</p>
+                                </div>
+                                <div>
                                     <p className="text-2xl font-bold text-white">{adminStats?.total_tasks ?? 0}</p>
-                                    <p className="text-xs text-purple-200 mt-0.5">All Tasks</p>
+                                    <p className="text-xs text-purple-200 mt-0.5">Total Tasks</p>
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-2xl font-bold text-white">{adminStats?.tasks_today ?? 0}</p>
-                                    <p className="text-xs text-purple-200 mt-0.5">Created Today</p>
-                                </div>
-                                <div className="text-center">
+                                <div>
                                     <p className="text-sm font-semibold text-emerald-300 mt-1">● Active</p>
                                     <p className="text-xs text-purple-200 mt-0.5">System Status</p>
                                 </div>
@@ -497,9 +642,13 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {(isAdmin ? adminMetrics : userMetrics).map(c => (
                         <div key={c.label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex flex-col gap-1">
-                            <span className={`text-xl w-10 h-10 rounded-xl flex items-center justify-center ${c.bg} ${c.color}`}>{c.icon}</span>
+                            <div className="flex items-center justify-between">
+                                <span className={`text-xl w-10 h-10 rounded-xl flex items-center justify-center ${c.bg} ${c.color}`}>{c.icon}</span>
+                                {isAdmin && c.trend && trendBadge(c.trend)}
+                            </div>
                             <span className="text-2xl font-bold text-gray-900 mt-2">{c.value}</span>
                             <span className="text-xs text-gray-500">{c.label}</span>
+                            {c.sub && <span className="text-[11px] text-gray-400 mt-0.5">{c.sub}</span>}
                         </div>
                     ))}
                 </div>
@@ -507,7 +656,7 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
                 {/* ── Main 2-col layout ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left: Calendar (shared) */}
-                    <CalendarPanel calendarTasks={calendarTasks} />
+                    <CalendarPanel calendarTasks={calendarTasks} activityLogs={activityLogs} />
 
                     {/* Right: admin feed OR user recent tasks */}
                     {isAdmin ? (
@@ -523,4 +672,3 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
         </AppLayout>
     );
 }
-

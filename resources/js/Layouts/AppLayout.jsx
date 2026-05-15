@@ -22,9 +22,10 @@ export default function AppLayout({ title, children }) {
     }, []);
 
     function markRead(notif) {
-        router.patch(route('notifications.read', notif.id), {}, { preserveScroll: true });
+        const routeName = notif.kind === 'project' ? 'project-notifications.read' : 'notifications.read';
+        router.patch(route(routeName, notif.id), {}, { preserveScroll: true });
         setBellOpen(false);
-        router.visit(route('tasks.edit', notif.task.id));
+        router.visit(notif.url);
     }
 
     function markAllRead() {
@@ -34,12 +35,12 @@ export default function AppLayout({ title, children }) {
     return (
         <div className="min-h-screen bg-gray-50 font-sans">
             {/* Top Nav */}
-            <nav className="bg-white border-b border-gray-100 sticky top-0 z-30">
+            <nav className="bg-gradient-to-r from-purple-700 via-purple-600 to-purple-700 border-b border-purple-800 sticky top-0 z-30">
                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-14">
                         {/* Logo */}
                         <Link href={route('dashboard')} className="flex items-center gap-2">
-                            <BrandLogo compact iconSize="w-7 h-7" labelSize="text-sm" />
+                            <BrandLogo compact iconSize="w-7 h-7" labelSize="text-sm" labelClass="text-white" />
                         </Link>
 
                         {/* Desktop nav links */}
@@ -58,7 +59,7 @@ export default function AppLayout({ title, children }) {
                             <div className="relative" ref={bellRef}>
                                 <button
                                     onClick={() => setBellOpen(v => !v)}
-                                    className="relative p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition"
+                                    className="relative p-1.5 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition"
                                     aria-label="Notifications"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -92,19 +93,20 @@ export default function AppLayout({ title, children }) {
                                                         className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition ${!n.read ? 'bg-purple-50/40' : ''}`}
                                                     >
                                                         <div className="flex items-start gap-2.5">
-                                                            <span className="text-base mt-0.5">{n.type === 'reopen_request' ? '📩' : n.type === 'overdue' ? '🚨' : n.type === 'due_soon' ? '⏰' : '🔔'}</span>
+                                                            <span className="text-base mt-0.5">
+                                                                {n.type === 'reopen_request' ? '📩'
+                                                                    : n.type === 'overdue' ? '🚨'
+                                                                        : n.type === 'due_soon' ? '⏰'
+                                                                            : n.type === 'file_upload' ? '📎'
+                                                                                : n.type === 'submission' ? '📥'
+                                                                                    : n.type === 'project_added' ? '📁'
+                                                                                        : n.type === 'project_updated' ? '🛠️'
+                                                                                            : n.type === 'assigned' ? '🎯'
+                                                                                                : '🔔'}
+                                                            </span>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-gray-800 truncate">{n.task.title}</p>
-                                                                <p className="text-xs text-gray-400 mt-0.5">
-                                                                    {n.type === 'reopen_request'
-                                                                        ? 'Reopen request received'
-                                                                        : n.type === 'overdue'
-                                                                            ? `Overdue since ${n.task.due_date}`
-                                                                            : n.type === 'due_soon'
-                                                                                ? `Due ${n.task.due_date}`
-                                                                                : 'Assigned to you'}
-                                                                    {' · '}{n.created_at}
-                                                                </p>
+                                                                <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
+                                                                <p className="text-xs text-gray-400 mt-0.5">{n.message} · {n.created_at}</p>
                                                             </div>
                                                             {!n.read && <span className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />}
                                                         </div>
@@ -116,10 +118,10 @@ export default function AppLayout({ title, children }) {
                                 )}
                             </div>
 
-                            <span className="text-sm text-gray-500">{auth?.user?.name}</span>
+                            <span className="text-sm text-purple-100">{auth?.user?.name}</span>
                             <Link
                                 href={route('profile.edit')}
-                                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition font-medium"
+                                className="text-xs px-3 py-1.5 rounded-lg border border-white/30 text-white/90 hover:bg-white/10 transition font-medium"
                             >
                                 Profile
                             </Link>
@@ -127,14 +129,14 @@ export default function AppLayout({ title, children }) {
                                 href={route('logout')}
                                 method="post"
                                 as="button"
-                                className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition font-medium"
+                                className="text-xs px-3 py-1.5 rounded-lg border border-white/30 text-white/90 hover:bg-white/10 transition font-medium"
                             >
                                 Log Out
                             </Link>
                         </div>
 
                         {/* Hamburger */}
-                        <button className="sm:hidden p-2 rounded-md text-gray-400" onClick={() => setMenuOpen(!menuOpen)}>
+                        <button className="sm:hidden p-2 rounded-md text-purple-100" onClick={() => setMenuOpen(!menuOpen)}>
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 {menuOpen
                                     ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -147,7 +149,7 @@ export default function AppLayout({ title, children }) {
 
                 {/* Mobile menu */}
                 {menuOpen && (
-                    <div className="sm:hidden px-4 pb-4 pt-2 space-y-1 border-t border-gray-100">
+                    <div className="sm:hidden px-4 pb-4 pt-2 space-y-1 border-t border-white/10 bg-purple-700/30">
                         <MobileLink href={route('dashboard')}>Dashboard</MobileLink>
                         <MobileLink href={route('tasks.index')}>Tasks</MobileLink>
                         <MobileLink href={route('projects.index')}>Projects</MobileLink>
@@ -163,26 +165,34 @@ export default function AppLayout({ title, children }) {
                                     <button
                                         key={n.id}
                                         onClick={() => { setMenuOpen(false); markRead(n); }}
-                                        className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-50 ${!n.read ? 'font-medium text-gray-800' : 'text-gray-500'}`}
+                                        className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/10 ${!n.read ? 'font-medium text-white' : 'text-purple-100'}`}
                                     >
-                                        {n.type === 'reopen_request' ? '📩' : n.type === 'overdue' ? '🚨' : n.type === 'due_soon' ? '⏰' : '🔔'} {n.task.title}
+                                        {n.type === 'reopen_request' ? '📩'
+                                            : n.type === 'overdue' ? '🚨'
+                                                : n.type === 'due_soon' ? '⏰'
+                                                    : n.type === 'file_upload' ? '📎'
+                                                        : n.type === 'submission' ? '📥'
+                                                            : n.type === 'project_added' ? '📁'
+                                                                : n.type === 'project_updated' ? '🛠️'
+                                                                    : n.type === 'assigned' ? '🎯'
+                                                                        : '🔔'} {n.title}
                                     </button>
                                 ))}
                                 {unread.length > 0 && (
-                                    <button onClick={() => { markAllRead(); setMenuOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-purple-600 hover:underline">
+                                    <button onClick={() => { markAllRead(); setMenuOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-white/80 hover:underline">
                                         Mark all read
                                     </button>
                                 )}
                             </div>
                         )}
-                        <Link
-                            href={route('logout')}
-                            method="post"
-                            as="button"
-                            className="block w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg"
-                        >
-                            Log Out
-                        </Link>
+                            <Link
+                                href={route('logout')}
+                                method="post"
+                                as="button"
+                                className="block w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10 rounded-lg"
+                            >
+                                Log Out
+                            </Link>
                     </div>
                 )}
             </nav>
@@ -203,8 +213,8 @@ function NavLink({ href, active, children }) {
         <Link
             href={href}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${active
-                ? 'text-purple-700 bg-purple-50'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
+                ? 'text-white bg-white/20'
+                : 'text-purple-100 hover:text-white hover:bg-white/10'
                 }`}
         >
             {children}
@@ -214,9 +224,8 @@ function NavLink({ href, active, children }) {
 
 function MobileLink({ href, children }) {
     return (
-        <Link href={href} className="block px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg">
+        <Link href={href} className="block px-3 py-2 text-sm text-purple-100 hover:bg-white/10 rounded-lg">
             {children}
         </Link>
     );
 }
-

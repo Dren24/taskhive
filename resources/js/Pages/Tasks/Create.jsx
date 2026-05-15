@@ -128,10 +128,11 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                     </div>
                                     {projects && projects.length > 0 && (
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project <span className="text-gray-400 font-normal">(optional)</span></label>
+                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
                                             <select value={row.project_id} onChange={e => updateRow(i, 'project_id', e.target.value)}
+                                                required
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                                <option value="">No project</option>
+                                                <option value="">Select project</option>
                                                 {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                             </select>
                                         </div>

@@ -2,9 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
+use App\Models\Project;
+use App\Models\ProjectComment;
 use App\Models\Task;
+use App\Models\TaskAttachment;
+use App\Models\TaskNotification;
+use App\Models\TaskSubmission;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class AdminController extends Controller
@@ -15,8 +22,17 @@ class AdminController extends Controller
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403);
 
-        $users = User::where('role', 'user')
-            ->withCount('tasks')
+        $users = User::where('role', '!=', 'admin')
+            ->withCount([
+                'tasks',
+                'projects',
+                'memberProjects',
+            ])
+            ->withMax('tasks', 'updated_at')
+            ->with([
+                'projects:id,name,user_id',
+                'memberProjects:id,name',
+            ])
             ->orderBy('name')
             ->get();
 
@@ -34,12 +50,27 @@ class AdminController extends Controller
             'overdue' => $tasks->filter(fn($t) => $t->status !== 'done' && $t->due_date && $t->due_date->lt($today))->count(),
         ];
 
+        $auditLogs = AuditLog::with('actor')
+            ->latest()
+            ->take(8)
+            ->get();
+
         return Inertia::render('Admin/Index', [
             'users' => $users->map(fn($u) => [
-                'id'          => $u->id,
-                'name'        => $u->name,
-                'email'       => $u->email,
-                'tasks_count' => $u->tasks_count,
+                'id'            => $u->id,
+                'name'          => $u->name,
+                'email'         => $u->email,
+                'role'          => $u->role,
+                'tasks_count'   => $u->tasks_count,
+                'projects_count'=> ($u->projects_count ?? 0) + ($u->member_projects_count ?? 0),
+                'last_active'   => $u->tasks_max_updated_at
+                    ? $u->tasks_max_updated_at->diffForHumans()
+                    : 'No activity',
+                'projects'      => $u->projects
+                    ->concat($u->memberProjects)
+                    ->unique('id')
+                    ->values()
+                    ->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
             ]),
             'tasks' => $tasks->map(fn($t) => [
                 'id'                => $t->id,
@@ -57,7 +88,52 @@ class AdminController extends Controller
                 'project'           => $t->project ? ['id' => $t->project->id, 'name' => $t->project->name] : null,
             ]),
             'stats' => $stats,
+            'auditLogs' => $auditLogs->map(fn($log) => [
+                'id'          => $log->id,
+                'action'      => $log->action,
+                'actor'       => $log->actor?->name ?? 'System',
+                'target_name' => $log->target_name ?? 'Unknown',
+                'target_email'=> $log->target_email,
+                'created_at'  => $log->created_at->diffForHumans(),
+            ]),
         ]);
+    }
+
+    public function destroyUser(User $user)
+    {
+        /** @var \App\Models\User $admin */
+        $admin = Auth::user();
+        abort_if(!$admin->isAdmin(), 403);
+        abort_if($user->id === $admin->id, 422, 'You cannot delete your own account.');
+        abort_if($user->isAdmin(), 422, 'Admin accounts cannot be deleted.');
+
+        $metadata = [
+            'tasks' => Task::where('user_id', $user->id)->count(),
+            'task_comments' => \App\Models\Comment::where('user_id', $user->id)->count(),
+            'project_comments' => ProjectComment::where('user_id', $user->id)->count(),
+            'attachments' => TaskAttachment::where('user_id', $user->id)->count(),
+            'submissions' => TaskSubmission::where('user_id', $user->id)->count(),
+            'task_notifications' => TaskNotification::where('user_id', $user->id)->count(),
+            'owned_projects' => Project::where('user_id', $user->id)->count(),
+            'project_memberships' => DB::table('project_user')->where('user_id', $user->id)->count(),
+        ];
+
+        DB::transaction(function () use ($admin, $user, $metadata) {
+            AuditLog::create([
+                'actor_id'      => $admin->id,
+                'action'        => 'user_deleted',
+                'target_user_id'=> $user->id,
+                'target_name'   => $user->name,
+                'target_email'  => $user->email,
+                'metadata'      => $metadata,
+                'ip_address'    => request()->ip(),
+                'user_agent'    => request()->userAgent(),
+            ]);
+
+            $user->delete();
+        });
+
+        return back()->with('success', 'User account permanently deleted.');
     }
 
     public function updateTask(Task $task)

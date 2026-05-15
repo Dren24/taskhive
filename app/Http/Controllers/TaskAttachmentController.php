@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use App\Models\TaskAttachment;
+use App\Models\TaskNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -23,7 +24,8 @@ class TaskAttachmentController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store("task-attachments/{$task->id}", 'local');
+        $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+        $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
 
         $task->attachments()->create([
             'user_id'       => $user->id,
@@ -32,6 +34,14 @@ class TaskAttachmentController extends Controller
             'mime_type'     => $file->getMimeType(),
             'size'          => $file->getSize(),
         ]);
+
+        if ($user->isAdmin() && $task->user_id !== $user->id) {
+            TaskNotification::create([
+                'user_id' => $task->user_id,
+                'task_id' => $task->id,
+                'type'    => 'file_upload',
+            ]);
+        }
 
         return back()->with('success', 'File uploaded.');
     }
