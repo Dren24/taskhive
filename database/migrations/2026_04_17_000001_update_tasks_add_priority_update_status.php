@@ -22,10 +22,13 @@ return new class extends Migration
             $table->string('status')->default('todo')->change();
         });
 
-        // Add CHECK constraints for PostgreSQL-compatible enum validation
-        DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_priority_check CHECK (priority IN ('low', 'medium', 'high'))");
-        DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check");
-        DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('todo', 'in_progress', 'done'))");
+        // SQLite does not support adding named CHECK constraints to an
+        // existing table; the app-level validation still covers test runs.
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_priority_check CHECK (priority IN ('low', 'medium', 'high'))");
+            DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check");
+            DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('todo', 'in_progress', 'done'))");
+        }
     }
 
     public function down(): void
@@ -34,15 +37,18 @@ return new class extends Migration
         DB::table('tasks')->where('status', 'in_progress')->update(['status' => 'pending']);
         DB::table('tasks')->where('status', 'done')->update(['status' => 'completed']);
 
-        DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_priority_check");
-        DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_priority_check");
+            DB::statement("ALTER TABLE tasks DROP CONSTRAINT IF EXISTS tasks_status_check");
+        }
 
         Schema::table('tasks', function (Blueprint $table) {
             $table->dropColumn('priority');
             $table->string('status')->default('pending')->change();
         });
 
-        DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('pending', 'completed'))");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE tasks ADD CONSTRAINT tasks_status_check CHECK (status IN ('pending', 'completed'))");
+        }
     }
 };
-

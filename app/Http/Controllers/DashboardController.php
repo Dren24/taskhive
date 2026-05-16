@@ -33,7 +33,7 @@ class DashboardController extends Controller
 
         // Calendar tasks: admin sees all system tasks, regular user sees only their own
         $calendarBase = $isAdmin
-            ? Task::with('project')->whereNotNull('due_date')
+            ? Task::with('project')->whereIn('user_id', $user->workspaceUserIds())->whereNotNull('due_date')
             : $user->tasks()->with('project')->whereNotNull('due_date');
 
         $calendarTasks = $calendarBase
@@ -59,6 +59,7 @@ class DashboardController extends Controller
         $activityLogs     = null;
 
         if ($isAdmin) {
+            $workspaceUserIds = $user->workspaceUserIds();
             $periodStart = now()->subDays(7)->startOfDay();
             $prevStart   = now()->subDays(14)->startOfDay();
             $prevEnd     = now()->subDays(7)->endOfDay();
@@ -72,13 +73,14 @@ class DashboardController extends Controller
                 return ['direction' => $pct >= 0 ? 'up' : 'down', 'value' => abs($pct)];
             };
 
-            $totalUsers     = User::count();
-            $totalProjects  = Project::count();
-            $activeProjects = Project::whereHas('tasks')->count();
-            $totalTasks     = Task::count();
-            $completedTasks = Task::where('status', 'done')->count();
-            $pendingTasks   = Task::where('status', '!=', 'done')->count();
+            $totalUsers     = $user->managedUsers()->count();
+            $totalProjects  = Project::whereIn('user_id', $workspaceUserIds)->count();
+            $activeProjects = Project::whereIn('user_id', $workspaceUserIds)->whereHas('tasks')->count();
+            $totalTasks     = Task::whereIn('user_id', $workspaceUserIds)->count();
+            $completedTasks = Task::whereIn('user_id', $workspaceUserIds)->where('status', 'done')->count();
+            $pendingTasks   = Task::whereIn('user_id', $workspaceUserIds)->where('status', '!=', 'done')->count();
             $overdueTasks   = Task::where('status', '!=', 'done')
+                ->whereIn('user_id', $workspaceUserIds)
                 ->whereNotNull('due_date')
                 ->whereDate('due_date', '<', today())
                 ->count();
@@ -94,20 +96,20 @@ class DashboardController extends Controller
                 'overdue_tasks'   => $overdueTasks,
                 'trends' => [
                     'users'     => $trend(
-                        User::whereBetween('created_at', [$periodStart, now()])->count(),
-                        User::whereBetween('created_at', [$prevStart, $prevEnd])->count()
+                        User::where('admin_id', $user->id)->whereBetween('created_at', [$periodStart, now()])->count(),
+                        User::where('admin_id', $user->id)->whereBetween('created_at', [$prevStart, $prevEnd])->count()
                     ),
                     'projects'  => $trend(
-                        Project::whereBetween('created_at', [$periodStart, now()])->count(),
-                        Project::whereBetween('created_at', [$prevStart, $prevEnd])->count()
+                        Project::whereIn('user_id', $workspaceUserIds)->whereBetween('created_at', [$periodStart, now()])->count(),
+                        Project::whereIn('user_id', $workspaceUserIds)->whereBetween('created_at', [$prevStart, $prevEnd])->count()
                     ),
                     'completed' => $trend(
-                        Task::where('status', 'done')->whereBetween('updated_at', [$periodStart, now()])->count(),
-                        Task::where('status', 'done')->whereBetween('updated_at', [$prevStart, $prevEnd])->count()
+                        Task::whereIn('user_id', $workspaceUserIds)->where('status', 'done')->whereBetween('updated_at', [$periodStart, now()])->count(),
+                        Task::whereIn('user_id', $workspaceUserIds)->where('status', 'done')->whereBetween('updated_at', [$prevStart, $prevEnd])->count()
                     ),
                     'pending'   => $trend(
-                        Task::where('status', '!=', 'done')->whereBetween('created_at', [$periodStart, now()])->count(),
-                        Task::where('status', '!=', 'done')->whereBetween('created_at', [$prevStart, $prevEnd])->count()
+                        Task::whereIn('user_id', $workspaceUserIds)->where('status', '!=', 'done')->whereBetween('created_at', [$periodStart, now()])->count(),
+                        Task::whereIn('user_id', $workspaceUserIds)->where('status', '!=', 'done')->whereBetween('created_at', [$prevStart, $prevEnd])->count()
                     ),
                 ],
             ];
@@ -117,6 +119,7 @@ class DashboardController extends Controller
             $activityLogs = collect();
 
             $tasksForLog = Task::with(['user', 'project'])
+                ->whereIn('user_id', $workspaceUserIds)
                 ->where(function ($q) use ($since) {
                     $q->where('created_at', '>=', $since)
                         ->orWhere('updated_at', '>=', $since);
@@ -148,6 +151,7 @@ class DashboardController extends Controller
             }
 
             $submissions = TaskSubmission::with(['user', 'task'])
+                ->whereHas('task', fn($q) => $q->whereIn('user_id', $workspaceUserIds))
                 ->where('created_at', '>=', $since)
                 ->get();
             foreach ($submissions as $submission) {
@@ -162,6 +166,7 @@ class DashboardController extends Controller
             }
 
             $attachments = TaskAttachment::with(['user', 'task'])
+                ->whereHas('task', fn($q) => $q->whereIn('user_id', $workspaceUserIds))
                 ->where('created_at', '>=', $since)
                 ->get();
             foreach ($attachments as $attachment) {
@@ -176,6 +181,7 @@ class DashboardController extends Controller
             }
 
             $taskComments = Comment::with(['user', 'task'])
+                ->whereHas('task', fn($q) => $q->whereIn('user_id', $workspaceUserIds))
                 ->where('created_at', '>=', $since)
                 ->get();
             foreach ($taskComments as $comment) {
@@ -190,6 +196,7 @@ class DashboardController extends Controller
             }
 
             $projectComments = ProjectComment::with(['user', 'project'])
+                ->whereHas('project', fn($q) => $q->whereIn('user_id', $workspaceUserIds))
                 ->where('created_at', '>=', $since)
                 ->get();
             foreach ($projectComments as $comment) {
@@ -204,6 +211,7 @@ class DashboardController extends Controller
             }
 
             $projectsForLog = Project::with('user')
+                ->whereIn('user_id', $workspaceUserIds)
                 ->where('updated_at', '>=', $since)
                 ->get(['id', 'name', 'created_at', 'updated_at', 'user_id']);
             foreach ($projectsForLog as $project) {
@@ -244,7 +252,7 @@ class DashboardController extends Controller
             ])->values()->toArray();
 
             // Per-user task breakdown for the intelligence table
-            $userIntelligence = User::withCount([
+            $userIntelligence = $user->managedUsers()->withCount([
                 'tasks as total_tasks',
                 'tasks as completed_tasks' => fn($q) => $q->where('status', 'done'),
                 'tasks as pending_tasks'   => fn($q) => $q->where('status', '!=', 'done'),

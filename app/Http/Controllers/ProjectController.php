@@ -20,7 +20,16 @@ class ProjectController extends Controller
 
         // Admins see all projects; regular users see projects they are a member of or have tasks in
         if ($user->isAdmin()) {
-            $projects = Project::withCount('tasks')->with('members')->latest()->get();
+            $workspaceUserIds = $user->workspaceUserIds();
+            $projects = Project::where(function ($q) use ($workspaceUserIds) {
+                    $q->whereIn('user_id', $workspaceUserIds)
+                        ->orWhereHas('members', fn($q2) => $q2->whereIn('users.id', $workspaceUserIds))
+                        ->orWhereHas('tasks', fn($q2) => $q2->whereIn('user_id', $workspaceUserIds));
+                })
+                ->withCount('tasks')
+                ->with('members')
+                ->latest()
+                ->get();
         } else {
             $projects = Project::where(function ($q) use ($user) {
                     $q->where('user_id', $user->id)
@@ -42,7 +51,7 @@ class ProjectController extends Controller
                 'members'     => $p->members->map(fn($m) => ['id' => $m->id, 'name' => $m->name]),
             ]),
             'users' => $user->isAdmin()
-                ? User::where('role', 'user')->orderBy('name')->get()->map(fn($u) => [
+                ? $user->managedUsers()->orderBy('name')->get()->map(fn($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
@@ -64,6 +73,9 @@ class ProjectController extends Controller
             'user_ids' => 'required|array|min:1',
             'user_ids.*' => 'exists:users,id',
         ]);
+
+        $allowedUserIds = $authUser->managedUsers()->pluck('id')->all();
+        abort_unless(empty(array_diff($data['user_ids'], $allowedUserIds)), 403, 'Choose users connected to your workspace.');
 
         // Primary owner = first selected user (for backward compat)
         $primaryUserId = $data['user_ids'][0];
@@ -108,7 +120,15 @@ class ProjectController extends Controller
         $user = Auth::user();
 
         // Allow admins, project owner, members, or users who have at least one task in this project
-        if (!$user->isAdmin()) {
+        if ($user->isAdmin()) {
+            $workspaceUserIds = $user->workspaceUserIds();
+            abort_unless(
+                in_array($project->user_id, $workspaceUserIds->all(), true)
+                || $project->members()->whereIn('users.id', $workspaceUserIds)->exists()
+                || $project->tasks()->whereIn('user_id', $workspaceUserIds)->exists(),
+                403
+            );
+        } else {
             abort_unless(
                 $project->user_id === $user->id
                 || $project->members()->where('users.id', $user->id)->exists()
@@ -137,11 +157,11 @@ class ProjectController extends Controller
 
         $project->load('comments.user');
         $projectOptions = $user->isAdmin()
-            ? Project::orderBy('name')->get(['id', 'name'])
+            ? Project::whereIn('user_id', $user->workspaceUserIds())->orderBy('name')->get(['id', 'name'])
             : $user->allProjects()->orderBy('name')->get(['id', 'name']);
 
         $assignableUsers = $user->isAdmin()
-            ? $project->members()->where('users.role', 'user')->orderBy('users.name')->get(['users.id', 'users.name'])
+            ? $project->members()->where('users.admin_id', $user->id)->orderBy('users.name')->get(['users.id', 'users.name'])
             : collect();
 
         return Inertia::render('Projects/Show', [
@@ -182,6 +202,7 @@ class ProjectController extends Controller
         /** @var \App\Models\User $authUser */
         $authUser = Auth::user();
         abort_if(!$authUser->isAdmin(), 403, 'Only admins can update projects.');
+        abort_unless($project->members()->where('users.admin_id', $authUser->id)->exists() || in_array($project->user_id, $authUser->workspaceUserIds()->all(), true), 403);
 
         $data = $request->validate([
             'name'  => 'required|string|max:255',
@@ -207,6 +228,7 @@ class ProjectController extends Controller
         /** @var \App\Models\User $authUser */
         $authUser = Auth::user();
         abort_if(!$authUser->isAdmin(), 403, 'Only admins can delete projects.');
+        abort_unless($project->members()->where('users.admin_id', $authUser->id)->exists() || in_array($project->user_id, $authUser->workspaceUserIds()->all(), true), 403);
 
         $normalizedName = strtolower(trim($project->name));
         abort_if(in_array($normalizedName, ['backlog', 'logbook'], true), 422, 'Backlog/Logbook projects cannot be deleted.');

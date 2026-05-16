@@ -60,7 +60,7 @@ function UserDeleteModal({ user, step, verifyText, setVerifyText, onCancel, onCo
     );
 }
 
-export default function ProfileEdit({ mustVerifyEmail, status, isAdmin = false, managedUsers = [], auditLogs = [] }) {
+export default function ProfileEdit({ mustVerifyEmail, status, isAdmin = false, managedUsers = [], auditLogs = [], adminAccessCode = null }) {
     const { props } = usePage();
     const flash = props.flash || {};
 
@@ -119,7 +119,12 @@ export default function ProfileEdit({ mustVerifyEmail, status, isAdmin = false, 
                     ))}
                 </div>
 
-                {activeTab === 'profile'  && <ProfileForm mustVerifyEmail={mustVerifyEmail} status={status} />}
+                {activeTab === 'profile'  && (
+                    <div className="space-y-5">
+                        {isAdmin && adminAccessCode && <AdminAccessCodePanel accessCode={adminAccessCode} />}
+                        <ProfileForm mustVerifyEmail={mustVerifyEmail} status={status} />
+                    </div>
+                )}
                 {activeTab === 'password' && <PasswordForm />}
                 {activeTab === 'delete'   && <DeleteForm />}
                 {activeTab === 'accounts' && isAdmin && (
@@ -139,6 +144,71 @@ export default function ProfileEdit({ mustVerifyEmail, status, isAdmin = false, 
                 />
             )}
         </AppLayout>
+    );
+}
+
+function AdminAccessCodePanel({ accessCode }) {
+    const [visible, setVisible] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const code = accessCode.code || '';
+    const masked = code ? code.replace(/[A-Z0-9]/g, '*') : 'No code generated';
+
+    const copyCode = async () => {
+        if (!code) return;
+        await navigator.clipboard.writeText(code);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+    };
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-purple-100 p-6 overflow-hidden relative">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-600 to-fuchsia-500" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-purple-600">Admin Access Code</p>
+                    <h2 className="mt-1 text-sm font-bold text-gray-900">Invite users into your workspace</h2>
+                    <p className="mt-1 text-xs leading-relaxed text-gray-500">
+                        Share this code with staff so new user accounts connect under your admin workspace automatically.
+                    </p>
+                </div>
+                <span className={`w-fit rounded-full px-3 py-1 text-xs font-semibold ${accessCode.is_active ? 'bg-purple-100 text-purple-700' : 'bg-rose-100 text-rose-600'}`}>
+                    {accessCode.is_active ? `${accessCode.connected_users_count} connected` : 'Expired'}
+                </span>
+            </div>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <div className="flex-1 rounded-xl border border-purple-100 bg-purple-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-purple-500">Invitation Code</p>
+                    <p className="mt-1 font-mono text-lg font-bold tracking-wider text-gray-900">
+                        {visible ? code : masked}
+                    </p>
+                </div>
+                <div className="flex gap-2 sm:flex-col">
+                    <button
+                        type="button"
+                        onClick={() => setVisible(v => !v)}
+                        className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                    >
+                        {visible ? 'Hide' : 'Show'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={copyCode}
+                        disabled={!code}
+                        className="flex-1 rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700 disabled:opacity-50"
+                    >
+                        {copied ? 'Copied' : 'Copy'}
+                    </button>
+                </div>
+            </div>
+            {copied && (
+                <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-purple-700 animate-fadeInScale">
+                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.25 7.2a1 1 0 01-1.41 0l-3.25-3.23a1 1 0 111.41-1.42l2.545 2.53 6.545-6.5a1 1 0 011.41 0z" clipRule="evenodd" />
+                    </svg>
+                    Code copied to clipboard.
+                </p>
+            )}
+        </div>
     );
 }
 
@@ -338,4 +408,3 @@ function DeleteForm() {
         </div>
     );
 }
-

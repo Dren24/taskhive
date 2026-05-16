@@ -22,7 +22,9 @@ class AdminController extends Controller
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403);
 
-        $users = User::where('role', '!=', 'admin')
+        $workspaceUserIds = $user->workspaceUserIds();
+
+        $users = $user->managedUsers()
             ->withCount([
                 'tasks',
                 'projects',
@@ -38,6 +40,7 @@ class AdminController extends Controller
 
         $tasks = Task::with(['user', 'project'])
             ->withCount('comments')
+            ->whereIn('user_id', $workspaceUserIds)
             ->latest()
             ->get();
 
@@ -106,6 +109,7 @@ class AdminController extends Controller
         abort_if(!$admin->isAdmin(), 403);
         abort_if($user->id === $admin->id, 422, 'You cannot delete your own account.');
         abort_if($user->isAdmin(), 422, 'Admin accounts cannot be deleted.');
+        abort_if($user->admin_id !== $admin->id, 403, 'This user is not connected to your workspace.');
 
         $metadata = [
             'tasks' => Task::where('user_id', $user->id)->count(),
@@ -141,6 +145,7 @@ class AdminController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403);
+        abort_if(!$user->workspaceUserIds()->contains($task->user_id), 403);
 
         $validated = request()->validate([
             'title'       => 'required|string|max:255',
@@ -160,6 +165,7 @@ class AdminController extends Controller
         /** @var \App\Models\User $user */
         $user = Auth::user();
         abort_if(!$user->isAdmin(), 403);
+        abort_if(!$user->workspaceUserIds()->contains($task->user_id), 403);
         $task->delete();
         return back()->with('success', 'Task deleted successfully.');
     }

@@ -28,12 +28,27 @@ class ProfileController extends Controller
         ];
 
         if ($user->isAdmin()) {
-            $users = User::where('role', '!=', 'admin')
+            $users = $user->managedUsers()
                 ->withCount(['tasks', 'projects', 'memberProjects'])
                 ->withMax('tasks', 'updated_at')
                 ->with(['projects:id,name,user_id', 'memberProjects:id,name'])
                 ->orderBy('name')
                 ->get();
+
+            if (!$user->admin_invitation_code) {
+                do {
+                    $code = 'ADM-' . \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4)) . '-' . \Illuminate\Support\Str::upper(\Illuminate\Support\Str::random(4));
+                } while (User::where('admin_invitation_code', $code)->exists());
+
+                $user->forceFill(['admin_invitation_code' => $code])->save();
+            }
+
+            $props['adminAccessCode'] = [
+                'code' => $user->admin_invitation_code,
+                'expires_at' => $user->admin_invitation_code_expires_at?->toIso8601String(),
+                'is_active' => $user->invitationCodeIsActive(),
+                'connected_users_count' => $users->count(),
+            ];
 
             $props['managedUsers'] = $users->map(fn($u) => [
                 'id'             => $u->id,
@@ -73,6 +88,7 @@ class ProfileController extends Controller
         abort_if(!$admin->isAdmin(), 403);
         abort_if($user->id === $admin->id, 422, 'You cannot delete your own account.');
         abort_if($user->isAdmin(), 422, 'Admin accounts cannot be deleted.');
+        abort_if($user->admin_id !== $admin->id, 403, 'This user is not connected to your workspace.');
 
         $metadata = [
             'user_id'    => $user->id,
