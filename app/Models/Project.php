@@ -16,7 +16,9 @@ class Project extends Model
     // All members of a group project (many-to-many pivot)
     public function members()
     {
-        return $this->belongsToMany(User::class, 'project_user');
+        return $this->belongsToMany(User::class, 'project_user')
+            ->withPivot(['access_level', 'permissions'])
+            ->withTimestamps();
     }
 
     public function tasks()

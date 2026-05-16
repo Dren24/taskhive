@@ -27,7 +27,7 @@ class ProjectController extends Controller
                         ->orWhereHas('tasks', fn($q2) => $q2->whereIn('user_id', $workspaceUserIds));
                 })
                 ->withCount('tasks')
-                ->with('members')
+                ->with(['members' => fn($q) => $q->withMax('tasks', 'updated_at')])
                 ->latest()
                 ->get();
         } else {
@@ -37,7 +37,7 @@ class ProjectController extends Controller
                       ->orWhereHas('tasks', fn($q2) => $q2->where('user_id', $user->id));
                 })
                 ->withCount('tasks')
-                ->with('members')
+                ->with(['members' => fn($q) => $q->withMax('tasks', 'updated_at')])
                 ->latest()
                 ->get();
         }
@@ -48,13 +48,14 @@ class ProjectController extends Controller
                 'name'        => $p->name,
                 'color'       => $p->color,
                 'tasks_count' => $p->tasks_count,
-                'members'     => $p->members->map(fn($m) => ['id' => $m->id, 'name' => $m->name]),
+                'members'     => $p->members->map(fn($m) => $this->memberPayload($m)),
             ]),
             'users' => $user->isAdmin()
                 ? $user->managedUsers()->orderBy('name')->get()->map(fn($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
+                    'role' => $u->role,
                 ])
                 : [],
             'isAdmin' => $user->isAdmin(),
@@ -87,7 +88,12 @@ class ProjectController extends Controller
         ]);
 
         // Attach all selected users to the pivot
-        $project->members()->sync($data['user_ids']);
+        $project->members()->sync(collect($data['user_ids'])->mapWithKeys(fn($id) => [
+            $id => [
+                'access_level' => 'editor',
+                'permissions' => json_encode($this->permissionsForAccessLevel('editor')),
+            ],
+        ])->all());
 
         // Notify all selected members
         $members = User::whereIn('id', $data['user_ids'])->get();
@@ -112,6 +118,78 @@ class ProjectController extends Controller
         }
 
         return back()->with('success', 'Project created.');
+    }
+
+    public function addMember(Request $request, Project $project)
+    {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+        abort_if(!$authUser->isAdmin(), 403, 'Only admins can add folder members.');
+        $this->authorizeWorkspaceProject($project, $authUser);
+
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'access_level' => 'nullable|in:viewer,editor,manager',
+        ]);
+
+        $member = User::findOrFail($data['user_id']);
+        abort_if($member->admin_id !== $authUser->id, 403, 'Choose a user connected to your workspace.');
+
+        $accessLevel = $data['access_level'] ?? 'editor';
+        $project->members()->syncWithoutDetaching([
+            $member->id => [
+                'access_level' => $accessLevel,
+                'permissions' => json_encode($this->permissionsForAccessLevel($accessLevel)),
+            ],
+        ]);
+
+        ProjectNotification::create([
+            'user_id' => $member->id,
+            'project_id' => $project->id,
+            'type' => 'project_added',
+        ]);
+
+        return back()->with('success', "{$member->name} was added to {$project->name}.");
+    }
+
+    public function updateMember(Request $request, Project $project, User $member)
+    {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+        abort_if(!$authUser->isAdmin(), 403, 'Only admins can update folder members.');
+        $this->authorizeWorkspaceProject($project, $authUser);
+        abort_unless($project->members()->where('users.id', $member->id)->exists(), 404);
+        abort_if($member->admin_id !== $authUser->id, 403);
+
+        $data = $request->validate([
+            'access_level' => 'required|in:viewer,editor,manager',
+        ]);
+
+        $project->members()->updateExistingPivot($member->id, [
+            'access_level' => $data['access_level'],
+            'permissions' => json_encode($this->permissionsForAccessLevel($data['access_level'])),
+        ]);
+
+        ProjectNotification::create([
+            'user_id' => $member->id,
+            'project_id' => $project->id,
+            'type' => 'project_updated',
+        ]);
+
+        return back()->with('success', "{$member->name}'s folder access was updated.");
+    }
+
+    public function removeMember(Project $project, User $member)
+    {
+        /** @var \App\Models\User $authUser */
+        $authUser = Auth::user();
+        abort_if(!$authUser->isAdmin(), 403, 'Only admins can remove folder members.');
+        $this->authorizeWorkspaceProject($project, $authUser);
+        abort_if($member->admin_id !== $authUser->id, 403);
+
+        $project->members()->detach($member->id);
+
+        return back()->with('success', "{$member->name} was removed from {$project->name}.");
     }
 
     public function show(Project $project)
@@ -259,5 +337,49 @@ class ProjectController extends Controller
         });
 
         return redirect()->route('projects.index')->with('success', 'Project deleted.');
+    }
+
+    private function authorizeWorkspaceProject(Project $project, User $admin): void
+    {
+        $workspaceUserIds = $admin->workspaceUserIds();
+
+        abort_unless(
+            in_array($project->user_id, $workspaceUserIds->all(), true)
+            || $project->members()->whereIn('users.id', $workspaceUserIds)->exists()
+            || $project->tasks()->whereIn('user_id', $workspaceUserIds)->exists(),
+            403
+        );
+    }
+
+    private function memberPayload(User $member): array
+    {
+        $lastActive = $member->tasks_max_updated_at
+            ? \Carbon\Carbon::parse($member->tasks_max_updated_at)
+            : $member->updated_at;
+
+        $accessLevel = $member->pivot?->access_level ?? 'editor';
+        $permissions = $member->pivot?->permissions
+            ? json_decode($member->pivot->permissions, true)
+            : $this->permissionsForAccessLevel($accessLevel);
+
+        return [
+            'id' => $member->id,
+            'name' => $member->name,
+            'email' => $member->email,
+            'role' => $member->role,
+            'access_level' => $accessLevel,
+            'permissions' => $permissions,
+            'online' => $lastActive?->gt(now()->subMinutes(10)) ?? false,
+            'last_active' => $lastActive ? $lastActive->diffForHumans() : 'No activity',
+        ];
+    }
+
+    private function permissionsForAccessLevel(string $accessLevel): array
+    {
+        return match ($accessLevel) {
+            'manager' => ['view', 'comment', 'submit', 'upload', 'manage_tasks'],
+            'viewer' => ['view', 'comment'],
+            default => ['view', 'comment', 'submit', 'upload'],
+        };
     }
 }

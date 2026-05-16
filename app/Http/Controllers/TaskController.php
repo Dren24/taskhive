@@ -206,6 +206,11 @@ class TaskController extends Controller
 
             $projectId = (int) $taskData['project_id'];
             abort_unless($this->hasProjectAccess($authUser->isAdmin() ? $authUser : $targetUser, $projectId), 422, 'Choose a project assigned to this workspace.');
+            abort_if(
+                $authUser->isAdmin() && !Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(),
+                422,
+                'Assign tasks only to users who are members of the selected project folder.'
+            );
 
             $task = $targetUser->tasks()->create([
                 'title'           => $taskData['title'],
@@ -297,6 +302,11 @@ class TaskController extends Controller
             /** @var User $targetUser */
             $targetUser = User::findOrFail($taskData['assign_to']);
             abort_if($targetUser->admin_id !== $authUser->id, 403, 'Choose users connected to your workspace.');
+            abort_if(
+                !Project::where('id', (int) $taskData['project_id'])->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(),
+                422,
+                'Assign group tasks only to users who are members of the selected project folder.'
+            );
 
             $task = $targetUser->tasks()->create([
                 'title'           => $taskData['title'],
@@ -431,6 +441,7 @@ class TaskController extends Controller
             $projectId = (int) $validated['project_id'];
             abort_if($targetUser->admin_id !== $user->id, 403, 'Choose a user connected to your workspace.');
             abort_unless($this->hasProjectAccess($user, $projectId), 422, 'Choose a project assigned to your workspace.');
+            abort_unless(Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(), 422, 'Assign tasks only to users who are members of the selected project folder.');
         }
 
         $task->update($validated);

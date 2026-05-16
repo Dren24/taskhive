@@ -50,6 +50,9 @@ Route::middleware('auth')->group(function () {
     Route::get('projects/{project}', [ProjectController::class, 'show'])->name('projects.show');
     Route::patch('projects/{project}', [ProjectController::class, 'update'])->name('projects.update');
     Route::delete('projects/{project}', [ProjectController::class, 'destroy'])->name('projects.destroy');
+    Route::post('projects/{project}/members', [ProjectController::class, 'addMember'])->name('projects.members.store');
+    Route::patch('projects/{project}/members/{member}', [ProjectController::class, 'updateMember'])->name('projects.members.update');
+    Route::delete('projects/{project}/members/{member}', [ProjectController::class, 'removeMember'])->name('projects.members.destroy');
     Route::post('projects/{project}/comments', [ProjectCommentController::class, 'store'])->name('projects.comments.store');
     Route::delete('projects/{project}/comments/{comment}', [ProjectCommentController::class, 'destroy'])->name('projects.comments.destroy');
 

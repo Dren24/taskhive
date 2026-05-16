@@ -150,11 +150,12 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
                                                 required
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
                                                 <option value="">Select user</option>
-                                                {(row.project_id && projectUsers && projectUsers[row.project_id]
-                                                    ? projectUsers[row.project_id]
-                                                    : users
-                                                ).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                                {(row.project_id && projectUsers ? (projectUsers[row.project_id] || []) : [])
+                                                    .map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                             </select>
+                                            {!row.project_id && (
+                                                <p className="text-xs text-gray-400 mt-1">Select a project first to show folder members.</p>
+                                            )}
                                             {row.project_id && projectUsers && projectUsers[row.project_id]?.length === 0 && (
                                                 <p className="text-xs text-amber-500 mt-1">No users assigned to this project yet.</p>
                                             )}

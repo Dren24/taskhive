@@ -59,8 +59,18 @@ function ColorPicker({ value, onChange }) {
     );
 }
 
+function initials(name) {
+    return (name || '?').split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase();
+}
+
+const ACCESS_LABELS = {
+    viewer: 'Viewer',
+    editor: 'Editor',
+    manager: 'Manager',
+};
+
 /* ── 3-dot dropdown per card ──────────────────────────────────────── */
-function CardMenu({ onEdit, onDelete }) {
+function CardMenu({ onEdit, onDelete, onManageMembers, onAddUser }) {
     const [open, setOpen] = useState(false);
     const ref = useRef();
 
@@ -84,21 +94,35 @@ function CardMenu({ onEdit, onDelete }) {
                 </svg>
             </button>
             {open && (
-                <div className="absolute right-0 top-8 w-44 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20"
+                <div className="absolute right-0 top-8 w-52 bg-white rounded-xl shadow-xl border border-gray-100 py-1 z-20"
                     style={{ animation: 'scaleIn 0.12s ease' }}>
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onEdit(); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
-                        Edit Project
+                        Edit Folder
+                    </button>
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onManageMembers(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Manage Members
+                    </button>
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onAddUser(); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3M12 7a4 4 0 11-8 0 4 4 0 018 0zM4 21a8 8 0 0116 0" />
+                        </svg>
+                        Add User
                     </button>
                     <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false); onDelete(); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Delete Project
+                        Delete Folder
                     </button>
                 </div>
             )}
@@ -113,6 +137,8 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
     const [showCreate, setShowCreate] = useState(false);
     const [editProject, setEditProject] = useState(null);
     const [deleteProject, setDeleteProject] = useState(null);
+    const [memberProject, setMemberProject] = useState(null);
+    const [addUserOpen, setAddUserOpen] = useState(false);
     const [selectedUserIds, setSelectedUserIds] = useState([]);
     const [deleting, setDeleting] = useState(false);
 
@@ -121,6 +147,8 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
 
     /* Edit form */
     const editForm = useForm({ name: '', color: '#8B5CF6' });
+
+    const memberForm = useForm({ user_id: '', access_level: 'editor' });
 
     const toggleUser = (userId) => {
         const id = String(userId);
@@ -162,6 +190,47 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
         router.delete(route('projects.destroy', deleteProject.id), {
             preserveScroll: true,
             onFinish: () => { setDeleting(false); setDeleteProject(null); },
+        });
+    };
+
+    const openMembers = (project, startAdd = false) => {
+        setMemberProject(project);
+        setAddUserOpen(startAdd);
+        memberForm.setData({ user_id: '', access_level: 'editor' });
+        memberForm.clearErrors();
+    };
+
+    const availableUsers = useMemo(() => {
+        if (!memberProject) return [];
+        const memberIds = new Set((memberProject.members || []).map(m => Number(m.id)));
+        return users.filter(u => !memberIds.has(Number(u.id)));
+    }, [memberProject, users]);
+
+    const addMember = (e) => {
+        e.preventDefault();
+        if (!memberProject || !memberForm.data.user_id) return;
+        memberForm.post(route('projects.members.store', memberProject.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                memberForm.setData({ user_id: '', access_level: 'editor' });
+                setAddUserOpen(false);
+                setMemberProject(null);
+            },
+        });
+    };
+
+    const updateMemberAccess = (member, accessLevel) => {
+        if (!memberProject) return;
+        router.patch(route('projects.members.update', [memberProject.id, member.id]), {
+            access_level: accessLevel,
+        }, { preserveScroll: true });
+    };
+
+    const removeMember = (member) => {
+        if (!memberProject || !confirm(`Remove ${member.name} from "${memberProject.name}"?`)) return;
+        router.delete(route('projects.members.destroy', [memberProject.id, member.id]), {
+            preserveScroll: true,
+            onSuccess: () => setMemberProject(null),
         });
     };
 
@@ -274,6 +343,8 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
                                     <div className="absolute top-4 right-4">
                                         <CardMenu
                                             onEdit={() => openEdit(p)}
+                                            onManageMembers={() => openMembers(p)}
+                                            onAddUser={() => openMembers(p, true)}
                                             onDelete={() => setDeleteProject(p)}
                                         />
                                     </div>
@@ -287,7 +358,7 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
                                             {p.name}
                                         </p>
                                         <p className="text-xs text-gray-400 mt-0.5">
-                                            {p.tasks_count} task{p.tasks_count !== 1 ? 's' : ''}
+                                            {p.tasks_count} task{p.tasks_count !== 1 ? 's' : ''} · {(p.members || []).length} member{(p.members || []).length !== 1 ? 's' : ''}
                                         </p>
                                     </div>
                                 </div>
@@ -463,6 +534,115 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
                 </form>
             </Modal>
 
+            {/* ── Member Management Modal ── */}
+            <Modal show={!!memberProject} onClose={() => setMemberProject(null)} maxWidth="max-w-3xl">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                    <div>
+                        <h2 className="text-base font-bold text-gray-900">Manage Members</h2>
+                        <p className="text-xs text-gray-400 mt-0.5 truncate max-w-md">{memberProject?.name}</p>
+                    </div>
+                    <button onClick={() => setMemberProject(null)}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                                {(memberProject?.members || []).length} folder member{(memberProject?.members || []).length !== 1 ? 's' : ''}
+                            </p>
+                            <p className="text-xs text-gray-400">Only these users appear in task assignment for this folder.</p>
+                        </div>
+                        <button type="button" onClick={() => setAddUserOpen(v => !v)}
+                            className="px-4 py-2 text-sm font-semibold rounded-xl text-white shadow transition hover:opacity-90"
+                            style={{ background: 'linear-gradient(135deg,#8B5CF6,#7C3AED)' }}>
+                            + Add User
+                        </button>
+                    </div>
+
+                    {addUserOpen && (
+                        <form onSubmit={addMember} className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4 grid gap-3 sm:grid-cols-[1fr_150px_auto]">
+                            <select
+                                value={memberForm.data.user_id}
+                                onChange={e => memberForm.setData('user_id', e.target.value)}
+                                required
+                                className="w-full border border-purple-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+                                <option value="">{availableUsers.length ? 'Select workspace user' : 'No users available'}</option>
+                                {availableUsers.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name} · {u.email}</option>
+                                ))}
+                            </select>
+                            <select
+                                value={memberForm.data.access_level}
+                                onChange={e => memberForm.setData('access_level', e.target.value)}
+                                className="w-full border border-purple-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+                                {Object.entries(ACCESS_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>{label}</option>
+                                ))}
+                            </select>
+                            <button type="submit" disabled={memberForm.processing || !memberForm.data.user_id}
+                                className="px-4 py-2.5 text-sm font-semibold rounded-xl text-white bg-purple-600 hover:bg-purple-700 transition disabled:opacity-50">
+                                Add
+                            </button>
+                            {memberForm.errors.user_id && <p className="text-xs text-rose-600 sm:col-span-3">{memberForm.errors.user_id}</p>}
+                        </form>
+                    )}
+
+                    <div className="space-y-3 max-h-[52vh] overflow-y-auto pr-1">
+                        {(memberProject?.members || []).length === 0 ? (
+                            <div className="rounded-2xl border border-gray-100 bg-gray-50 py-10 text-center">
+                                <p className="text-sm font-semibold text-gray-700">No members yet</p>
+                                <p className="text-xs text-gray-400 mt-1">Add users before assigning tasks in this folder.</p>
+                            </div>
+                        ) : (
+                            memberProject.members.map(member => (
+                                <div key={member.id} className="rounded-2xl border border-gray-100 bg-white p-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="relative shrink-0">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-700 text-white flex items-center justify-center text-xs font-bold">
+                                                {initials(member.name)}
+                                            </div>
+                                            <span className={`absolute -right-0.5 -bottom-0.5 w-3 h-3 rounded-full border-2 border-white ${member.online ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <p className="text-sm font-bold text-gray-900 truncate">{member.name}</p>
+                                                <span className="text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-semibold capitalize">{member.role}</span>
+                                                <span className={`text-[11px] px-2 py-0.5 rounded-full font-semibold ${member.online ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {member.online ? 'Online' : member.last_active}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-gray-400 truncate">{member.email}</p>
+                                            <p className="text-[11px] text-purple-600 mt-1">
+                                                {(member.permissions || []).map(p => p.replace('_', ' ')).join(' · ')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 sm:justify-end">
+                                        <select
+                                            value={member.access_level || 'editor'}
+                                            onChange={e => updateMemberAccess(member, e.target.value)}
+                                            className="border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white">
+                                            {Object.entries(ACCESS_LABELS).map(([value, label]) => (
+                                                <option key={value} value={value}>{label}</option>
+                                            ))}
+                                        </select>
+                                        <button type="button" onClick={() => removeMember(member)}
+                                            className="px-3 py-2 text-xs font-semibold rounded-xl border border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 transition">
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            </Modal>
+
             {/* ── Delete Confirm Modal ── */}
             <Modal show={!!deleteProject} onClose={() => !deleting && setDeleteProject(null)} maxWidth="max-w-sm">
                 <div className="p-6 text-center">
@@ -491,4 +671,3 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
         </AppLayout>
     );
 }
-
