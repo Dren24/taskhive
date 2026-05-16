@@ -319,3 +319,172 @@
 .animate-fadeInScale {
     animation: fadeInScale 0.2s ease-out;
 }
+
+/* Dark-mode retrofit for legacy hard-coded Tailwind surfaces.
+   Several pages still use static gray/white utilities for cards, tables,
+   modals, inputs, and small chips. Keep those pages readable until the JSX is
+   fully migrated to the shared themed components. */
+:root.dark .bg-white,
+:root.dark .bg-gray-50,
+:root.dark .bg-gray-50\/50,
+:root.dark .bg-gray-50\/80 {
+    background-color: var(--bg-secondary) !important;
+}
+
+:root.dark .bg-gray-100,
+:root.dark .bg-gray-200 {
+    background-color: var(--bg-tertiary) !important;
+}
+
+:root.dark .hover\:bg-gray-50:hover,
+:root.dark .hover\:bg-gray-50\/80:hover,
+:root.dark .hover\:bg-gray-100:hover {
+    background-color: var(--bg-tertiary) !important;
+}
+
+:root.dark .border-gray-50,
+:root.dark .border-gray-100,
+:root.dark .border-gray-200,
+:root.dark .border-gray-300 {
+    border-color: var(--border-primary) !important;
+}
+
+:root.dark .divide-gray-50 > :not([hidden]) ~ :not([hidden]) {
+    border-color: var(--border-primary) !important;
+}
+
+:root.dark .text-gray-900,
+:root.dark .text-gray-800,
+:root.dark .text-gray-700 {
+    color: var(--text-primary) !important;
+}
+
+:root.dark .text-gray-600,
+:root.dark .text-gray-500 {
+    color: var(--text-secondary) !important;
+}
+
+:root.dark .text-gray-400,
+:root.dark .text-gray-300 {
+    color: var(--text-tertiary) !important;
+}
+
+:root.dark input,
+:root.dark textarea,
+:root.dark select {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-primary);
+    color: var(--text-primary);
+}
+
+:root.dark input::placeholder,
+:root.dark textarea::placeholder {
+    color: var(--text-tertiary);
+}
+
+:root.dark .bg-purple-50,
+:root.dark .bg-purple-50\/50,
+:root.dark .hover\:bg-purple-50:hover,
+:root.dark .hover\:bg-purple-50\/50:hover {
+    background-color: rgb(168 85 247 / 0.12) !important;
+}
+
+:root.dark .bg-purple-100,
+:root.dark .bg-purple-200,
+:root.dark .hover\:bg-purple-100:hover,
+:root.dark .hover\:bg-purple-200:hover {
+    background-color: rgb(168 85 247 / 0.2) !important;
+}
+
+:root.dark .border-purple-100,
+:root.dark .border-purple-200,
+:root.dark .border-purple-300 {
+    border-color: rgb(168 85 247 / 0.35) !important;
+}
+
+:root.dark .text-purple-700,
+:root.dark .text-purple-600,
+:root.dark .text-purple-500,
+:root.dark .text-violet-700,
+:root.dark .text-violet-600 {
+    color: rgb(216 180 254) !important;
+}
+
+:root.dark .bg-violet-100 {
+    background-color: rgb(139 92 246 / 0.18) !important;
+}
+
+:root.dark .bg-blue-50,
+:root.dark .bg-blue-100 {
+    background-color: rgb(59 130 246 / 0.16) !important;
+}
+
+:root.dark .border-blue-100,
+:root.dark .border-blue-200 {
+    border-color: rgb(59 130 246 / 0.35) !important;
+}
+
+:root.dark .text-blue-700,
+:root.dark .text-blue-600 {
+    color: rgb(147 197 253) !important;
+}
+
+:root.dark .bg-emerald-50,
+:root.dark .bg-emerald-50\/30,
+:root.dark .bg-emerald-50\/40,
+:root.dark .bg-emerald-100,
+:root.dark .hover\:bg-emerald-100:hover {
+    background-color: rgb(16 185 129 / 0.14) !important;
+}
+
+:root.dark .border-emerald-100,
+:root.dark .border-emerald-200 {
+    border-color: rgb(16 185 129 / 0.35) !important;
+}
+
+:root.dark .text-emerald-700,
+:root.dark .text-emerald-600 {
+    color: rgb(110 231 183) !important;
+}
+
+:root.dark .bg-amber-50,
+:root.dark .bg-amber-100,
+:root.dark .hover\:bg-amber-100:hover {
+    background-color: rgb(245 158 11 / 0.16) !important;
+}
+
+:root.dark .border-amber-100,
+:root.dark .border-amber-200,
+:root.dark .border-amber-300 {
+    border-color: rgb(245 158 11 / 0.35) !important;
+}
+
+:root.dark .text-amber-700,
+:root.dark .text-amber-600,
+:root.dark .text-amber-500 {
+    color: rgb(252 211 77) !important;
+}
+
+:root.dark .bg-rose-50,
+:root.dark .bg-rose-50\/50,
+:root.dark .bg-rose-100,
+:root.dark .hover\:bg-rose-100:hover,
+:root.dark .bg-red-50,
+:root.dark .bg-red-100 {
+    background-color: rgb(244 63 94 / 0.14) !important;
+}
+
+:root.dark .border-rose-100,
+:root.dark .border-rose-200,
+:root.dark .border-red-100,
+:root.dark .border-red-200 {
+    border-color: rgb(244 63 94 / 0.35) !important;
+}
+
+:root.dark .text-rose-700,
+:root.dark .text-rose-600,
+:root.dark .text-rose-500,
+:root.dark .text-red-600,
+:root.dark .text-red-500 {
+    color: rgb(253 164 175) !important;
+}
