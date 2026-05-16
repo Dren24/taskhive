@@ -488,3 +488,115 @@
 :root.dark .text-red-500 {
     color: rgb(253 164 175) !important;
 }
+
+/* Public home page is intentionally light-only. It should stay white even if
+   the signed-in app has a saved dark theme. */
+:root.dark .home-light-only,
+:root.dark .home-light-only .bg-white {
+    background-color: #ffffff !important;
+}
+
+:root.dark .home-light-only .bg-gray-50,
+:root.dark .home-light-only .bg-gray-50\/50,
+:root.dark .home-light-only .bg-gray-50\/60,
+:root.dark .home-light-only .bg-gray-50\/70,
+:root.dark .home-light-only .bg-gray-50\/80 {
+    background-color: #f9fafb !important;
+}
+
+:root.dark .home-light-only .bg-gray-100 {
+    background-color: #f3f4f6 !important;
+}
+
+:root.dark .home-light-only .bg-gray-200 {
+    background-color: #e5e7eb !important;
+}
+
+:root.dark .home-light-only .border-white {
+    border-color: #ffffff !important;
+}
+
+:root.dark .home-light-only .border-gray-50 {
+    border-color: #f9fafb !important;
+}
+
+:root.dark .home-light-only .border-gray-100 {
+    border-color: #f3f4f6 !important;
+}
+
+:root.dark .home-light-only .border-gray-200 {
+    border-color: #e5e7eb !important;
+}
+
+:root.dark .home-light-only .border-gray-300 {
+    border-color: #d1d5db !important;
+}
+
+:root.dark .home-light-only .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #f3f4f6 !important;
+}
+
+:root.dark .home-light-only .text-gray-900 {
+    color: #111827 !important;
+}
+
+:root.dark .home-light-only .text-gray-800 {
+    color: #1f2937 !important;
+}
+
+:root.dark .home-light-only .text-gray-700 {
+    color: #374151 !important;
+}
+
+:root.dark .home-light-only .text-gray-600 {
+    color: #4b5563 !important;
+}
+
+:root.dark .home-light-only .text-gray-500 {
+    color: #6b7280 !important;
+}
+
+:root.dark .home-light-only .text-gray-400 {
+    color: #9ca3af !important;
+}
+
+:root.dark .home-light-only .text-gray-300 {
+    color: #d1d5db !important;
+}
+
+:root.dark .home-light-only .bg-purple-50,
+:root.dark .home-light-only .hover\:bg-purple-50:hover {
+    background-color: #faf5ff !important;
+}
+
+:root.dark .home-light-only .bg-red-50 {
+    background-color: #fef2f2 !important;
+}
+
+:root.dark .home-light-only .bg-amber-50 {
+    background-color: #fffbeb !important;
+}
+
+:root.dark .home-light-only .bg-green-50 {
+    background-color: #f0fdf4 !important;
+}
+
+:root.dark .home-light-only .text-purple-700 {
+    color: #7e22ce !important;
+}
+
+:root.dark .home-light-only .text-purple-600 {
+    color: #9333ea !important;
+}
+
+:root.dark .home-light-only .text-red-600 {
+    color: #dc2626 !important;
+}
+
+:root.dark .home-light-only .text-amber-600 {
+    color: #d97706 !important;
+}
+
+:root.dark .home-light-only .text-green-600 {
+    color: #16a34a !important;
+}

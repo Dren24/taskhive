@@ -64,7 +64,7 @@ export default function Welcome() {
         <>
             <Head title="TaskHive — Manage Tasks Like a Pro" />
 
-            <div className="bg-white min-h-screen font-sans antialiased text-gray-900 overflow-x-hidden">
+            <div className="home-light-only bg-white min-h-screen font-sans antialiased text-gray-900 overflow-x-hidden">
 
                 {/* ══════════════════════════════════════
                     STICKY NAV
