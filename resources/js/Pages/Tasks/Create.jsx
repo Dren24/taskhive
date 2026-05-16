@@ -9,7 +9,7 @@ function emptyRow(authId) {
     return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', due_time: '', project_id: '', assign_to: authId || '', max_submissions: '' };
 }
 
-export default function TaskCreate({ projects, users, isAdmin, authId }) {
+export default function TaskCreate({ projects, users, projectUsers, isAdmin, authId }) {
     const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: '' }]);
     const [files, setFiles] = useState([[]]);   // array of file arrays, one per row
     const [processing, setProcessing] = useState(false);
@@ -17,7 +17,13 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
     const fileInputRefs = useRef([]);
 
     const updateRow = (i, field, value) => {
-        setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: value } : r));
+        setRows(prev => prev.map((r, idx) => {
+            if (idx !== i) return r;
+            const updated = { ...r, [field]: value };
+            // When project changes, reset assign_to so stale user is cleared
+            if (field === 'project_id') updated.assign_to = '';
+            return updated;
+        }));
     };
 
     const addRow = () => {
@@ -144,8 +150,14 @@ export default function TaskCreate({ projects, users, isAdmin, authId }) {
                                                 required
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
                                                 <option value="">Select user</option>
-                                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                                {(row.project_id && projectUsers && projectUsers[row.project_id]
+                                                    ? projectUsers[row.project_id]
+                                                    : users
+                                                ).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                             </select>
+                                            {row.project_id && projectUsers && projectUsers[row.project_id]?.length === 0 && (
+                                                <p className="text-xs text-amber-500 mt-1">No users assigned to this project yet.</p>
+                                            )}
                                         </div>
                                     )}
                                     {isAdmin && (

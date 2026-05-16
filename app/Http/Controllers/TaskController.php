@@ -133,11 +133,27 @@ class TaskController extends Controller
         $users = $user->isAdmin()
             ? User::where('role', 'user')->orderBy('name')->get()
             : collect();
+
+        // Build project→users map so the frontend can filter by selected project
+        $projectUsers = [];
+        if ($user->isAdmin()) {
+            foreach ($projects as $p) {
+                $projectUsers[$p->id] = $p->users()
+                    ->where('role', 'user')
+                    ->orderBy('name')
+                    ->get(['users.id', 'users.name'])
+                    ->map(fn($u) => ['id' => $u->id, 'name' => $u->name])
+                    ->values()
+                    ->all();
+            }
+        }
+
         return Inertia::render('Tasks/Create', [
-            'projects' => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-            'users'    => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
-            'isAdmin'  => $user->isAdmin(),
-            'authId'   => $user->id,
+            'projects'     => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
+            'users'        => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+            'projectUsers' => $projectUsers,
+            'isAdmin'      => $user->isAdmin(),
+            'authId'       => $user->id,
         ]);
     }
 
