@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class TaskAttachment extends Model
 {
-    protected $fillable = ['task_id', 'user_id', 'original_name', 'path', 'mime_type', 'size'];
+    protected $fillable = ['task_id', 'user_id', 'project_id', 'original_name', 'path', 'mime_type', 'size'];
 
     public function task()
     {
@@ -16,5 +16,10 @@ class TaskAttachment extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
     }
 }

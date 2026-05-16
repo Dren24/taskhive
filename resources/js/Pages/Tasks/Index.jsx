@@ -1,6 +1,7 @@
 import { Head, Link, usePage, router } from '@inertiajs/react';
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
+import AttachmentUploader, { fileTypeIcon, formatFileSize } from '../../Components/AttachmentUploader';
 
 function priorityBadge(p) {
     const map = { high: 'bg-rose-100 text-rose-600', medium: 'bg-amber-100 text-amber-600', low: 'bg-gray-100 text-gray-500' };
@@ -39,13 +40,6 @@ function isDueSoon(task) {
     return h >= 0 && h <= 48;
 }
 
-function formatFileSize(bytes) {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function fileIcon(name) {
     if (!name) return '📎';
     const ext = name.split('.').pop()?.toLowerCase();
@@ -59,29 +53,15 @@ function fileIcon(name) {
 
 /* ─── Submission Modal ───────────────────────────────────────────────── */
 function SubmitModal({ task, projectOptions = [], onClose }) {
-    const [file, setFile] = useState(null);
+    const [files, setFiles] = useState([]);
     const [comment, setComment] = useState('');
-    const [dragging, setDragging] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [progress, setProgress] = useState(0);
     const [projectId, setProjectId] = useState(task.project_id || (projectOptions?.[0]?.id ?? ''));
-    const fileRef = useRef();
 
     const isResubmit = (task.submissions_count || 0) > 0;
     const label = isResubmit ? 'Resubmit Task' : 'Submit Task';
     const MAX_COMMENT = 2000;
-
-    const pickFile = (f) => {
-        if (!f) return;
-        if (f.size > 20 * 1024 * 1024) { alert('File must be under 20 MB.'); return; }
-        setFile(f);
-    };
-
-    const onDrop = useCallback((e) => {
-        e.preventDefault();
-        setDragging(false);
-        pickFile(e.dataTransfer.files[0]);
-    }, []);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -93,7 +73,7 @@ function SubmitModal({ task, projectOptions = [], onClose }) {
 
         const formData = new FormData();
         if (comment.trim()) formData.append('comment', comment.trim());
-        if (file) formData.append('file', file);
+        files.forEach((file) => formData.append('files[]', file));
         if (!task.project_id && projectId) formData.append('project_id', projectId);
 
         setSubmitting(true);
@@ -145,52 +125,15 @@ function SubmitModal({ task, projectOptions = [], onClose }) {
                 <div className="overflow-y-auto flex-1">
                     <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-                        {/* File upload drop zone */}
-                        <div>
-                            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                                Attach File <span className="text-gray-400 font-normal normal-case">(optional · max 20 MB)</span>
-                            </label>
-                            <div
-                                onClick={() => !file && fileRef.current?.click()}
-                                onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-                                onDragLeave={() => setDragging(false)}
-                                onDrop={onDrop}
-                                className={`relative border-2 border-dashed rounded-xl transition cursor-pointer
-                                    ${file ? 'border-purple-300 bg-purple-50' : dragging ? 'border-purple-400 bg-purple-50' : 'border-gray-200 bg-gray-50 hover:border-purple-300 hover:bg-purple-50/50'}`}>
-                                <input
-                                    ref={fileRef}
-                                    type="file"
-                                    className="hidden"
-                                    onChange={(e) => pickFile(e.target.files[0])}
-                                />
-
-                                {file ? (
-                                    <div className="flex items-center gap-3 px-4 py-3">
-                                        <span className="text-2xl">{fileIcon(file.name)}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-gray-800 truncate">{file.name}</p>
-                                            <p className="text-xs text-gray-400">{formatFileSize(file.size)}</p>
-                                        </div>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); setFile(null); if (fileRef.current) fileRef.current.value = ''; }}
-                                            className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 text-gray-500 hover:bg-rose-100 hover:text-rose-600 text-xs transition">
-                                            ✕
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="py-8 px-4 text-center">
-                                        <div className="text-3xl mb-2">☁️</div>
-                                        <p className="text-sm font-medium text-gray-600">
-                                            {dragging ? 'Drop file here' : 'Drag & drop or click to upload'}
-                                        </p>
-                                        <p className="text-xs text-gray-400 mt-1">PDF, DOC, XLS, PNG, ZIP and more</p>
-                                        <button type="button" onClick={() => fileRef.current?.click()}
-                                            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-purple-200 text-purple-600 bg-white hover:bg-purple-50 transition">
-                                            📂 Browse files
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <AttachmentUploader
+                            files={files}
+                            onAdd={(selectedFiles) => setFiles(prev => [...prev, ...selectedFiles])}
+                            onRemove={(index) => setFiles(prev => prev.filter((_, i) => i !== index))}
+                            uploading={submitting}
+                            progress={progress}
+                            title="Attach Files"
+                            optionalLabel="(optional)"
+                        />
 
                         {/* Comment textarea */}
                         <div>
@@ -290,7 +233,25 @@ function SubmitModal({ task, projectOptions = [], onClose }) {
                                             {s.comment && (
                                                 <p className="text-sm text-gray-700 mb-2 leading-relaxed">{s.comment}</p>
                                             )}
-                                            {s.original_name && (
+                                            {(s.files || []).length > 0 ? (
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    {s.files.map(file => (
+                                                        <div key={file.id} className="flex items-center gap-2 rounded-lg border border-purple-100 bg-white/70 p-2">
+                                                            {file.preview_url && file.mime_type?.startsWith('image/') ? (
+                                                                <img src={file.preview_url} alt="" className="h-9 w-9 rounded-md object-cover" />
+                                                            ) : (
+                                                                <span className="flex h-9 w-9 items-center justify-center rounded-md bg-purple-100 text-[10px] font-black text-purple-700">{fileTypeIcon(file)}</span>
+                                                            )}
+                                                            <div className="min-w-0 flex-1">
+                                                                <a href={file.download_url} className="block truncate text-xs font-semibold text-purple-700 hover:underline">
+                                                                    {file.original_name}
+                                                                </a>
+                                                                <p className="text-[11px] text-gray-400">{formatFileSize(file.size)}</p>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : s.original_name && (
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm">{fileIcon(s.original_name)}</span>
                                                     {s.download_url ? (
@@ -303,7 +264,7 @@ function SubmitModal({ task, projectOptions = [], onClose }) {
                                                     )}
                                                 </div>
                                             )}
-                                            {!s.comment && !s.original_name && (
+                                            {!s.comment && !s.original_name && (!s.files || s.files.length === 0) && (
                                                 <p className="text-xs text-gray-400 italic">No file or comment attached.</p>
                                             )}
                                         </div>

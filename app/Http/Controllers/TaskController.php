@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\TaskNotification;
 use App\Models\TaskSubmission;
+use App\Models\TaskSubmissionFile;
 use App\Models\TaskVote;
 use App\Models\Project;
 use App\Models\User;
@@ -68,8 +69,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->whereIn('user_id', $user->workspaceUserIds())->latest()->get()
-            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'leader', 'votes'])->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereIn('user_id', $user->workspaceUserIds())->latest()->get()
+            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->latest()->get();
 
         // Build group_id → [members] map so every group task card can show all voters
         $groupIds = $tasks->pluck('group_id')->filter()->unique()->values();
@@ -123,6 +124,9 @@ class TaskController extends Controller
                     'mime_type'     => $a->mime_type,
                     'created_at'    => $a->created_at->diffForHumans(),
                     'user'          => ['id' => $a->user->id, 'name' => $a->user->name],
+                    'preview_url'   => str_starts_with((string) $a->mime_type, 'image/') || $a->mime_type === 'application/pdf'
+                        ? route('tasks.attachments.preview', [$t->id, $a->id])
+                        : null,
                     'download_url'  => route('tasks.attachments.download', [$t->id, $a->id]),
                 ]),
                 'submissions' => $t->submissions->map(fn($s) => [
@@ -133,6 +137,16 @@ class TaskController extends Controller
                     'created_at'    => $s->created_at->format('M j, Y g:i A'),
                     'user'          => ['name' => $s->user->name],
                     'download_url'  => $s->file_path ? route('tasks.submissions.download', [$t->id, $s->id]) : null,
+                    'files'         => $s->files->map(fn($f) => [
+                        'id'            => $f->id,
+                        'original_name' => $f->original_name,
+                        'size'          => $f->size,
+                        'mime_type'     => $f->mime_type,
+                        'preview_url'   => str_starts_with((string) $f->mime_type, 'image/') || $f->mime_type === 'application/pdf'
+                            ? route('tasks.submissions.files.preview', [$t->id, $s->id, $f->id])
+                            : null,
+                        'download_url'  => route('tasks.submissions.files.download', [$t->id, $s->id, $f->id]),
+                    ]),
                 ]),
             ]),
             'projectOptions' => $projectOptions,
@@ -235,6 +249,7 @@ class TaskController extends Controller
                 if ($path) {
                     $task->attachments()->create([
                         'user_id'       => $authUser->id,
+                        'project_id'    => $task->project_id,
                         'original_name' => $file->getClientOriginalName(),
                         'path'          => $path,
                         'mime_type'     => $file->getMimeType(),
@@ -347,7 +362,7 @@ class TaskController extends Controller
         }
 
         $projects = $this->userProjects();
-        $task->load(['comments.user', 'attachments.user', 'leader', 'votes']);
+        $task->load(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes']);
         $users = $user->isAdmin() ? $user->managedUsers()->orderBy('name')->get(['id','name']) : collect();
 
         // For group tasks, find all group members (users whose tasks share same group_id)
@@ -393,7 +408,29 @@ class TaskController extends Controller
                     'mime_type'     => $a->mime_type,
                     'created_at'    => $a->created_at->diffForHumans(),
                     'user'          => ['id' => $a->user->id, 'name' => $a->user->name],
+                    'preview_url'   => str_starts_with((string) $a->mime_type, 'image/') || $a->mime_type === 'application/pdf'
+                        ? route('tasks.attachments.preview', [$task->id, $a->id])
+                        : null,
                     'download_url'  => route('tasks.attachments.download', [$task->id, $a->id]),
+                ]),
+                'submissions'      => $task->submissions->map(fn($s) => [
+                    'id'            => $s->id,
+                    'comment'       => $s->comment,
+                    'original_name' => $s->original_name,
+                    'attempt'       => $s->attempt,
+                    'created_at'    => $s->created_at->format('M j, Y g:i A'),
+                    'user'          => ['id' => $s->user->id, 'name' => $s->user->name],
+                    'download_url'  => $s->file_path ? route('tasks.submissions.download', [$task->id, $s->id]) : null,
+                    'files'         => $s->files->map(fn($f) => [
+                        'id'            => $f->id,
+                        'original_name' => $f->original_name,
+                        'size'          => $f->size,
+                        'mime_type'     => $f->mime_type,
+                        'preview_url'   => str_starts_with((string) $f->mime_type, 'image/') || $f->mime_type === 'application/pdf'
+                            ? route('tasks.submissions.files.preview', [$task->id, $s->id, $f->id])
+                            : null,
+                        'download_url'  => route('tasks.submissions.files.download', [$task->id, $s->id, $f->id]),
+                    ]),
                 ]),
             ],
             'projects'     => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
@@ -572,7 +609,9 @@ class TaskController extends Controller
 
         $validated = $request->validate([
             'comment' => 'nullable|string|max:2000',
-            'file'    => 'nullable|file|max:20480', // 20 MB max
+            'file'    => 'nullable|file|max:51200',
+            'files'   => 'nullable|array|max:10',
+            'files.*' => 'file|max:51200',
             'project_id' => 'nullable|exists:projects,id',
         ]);
 
@@ -587,20 +626,21 @@ class TaskController extends Controller
         $mimeType     = null;
         $size         = null;
 
+        $uploadedFiles = $request->file('files', []);
         if ($request->hasFile('file')) {
-            $file         = $request->file('file');
-            $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
-            $filePath     = $file->store("{$projectFolder}/tasks/{$task->id}/submissions", 'public');
-            $originalName = $file->getClientOriginalName();
-            $mimeType     = $file->getMimeType();
-            $size         = $file->getSize();
+            array_unshift($uploadedFiles, $request->file('file'));
+        }
+
+        if (!is_array($uploadedFiles)) {
+            $uploadedFiles = [$uploadedFiles];
         }
 
         $task->increment('submissions_count');
 
-        TaskSubmission::create([
+        $submission = TaskSubmission::create([
             'task_id'       => $task->id,
             'user_id'       => $user->id,
+            'project_id'    => $task->project_id,
             'comment'       => $request->input('comment'),
             'file_path'     => $filePath,
             'original_name' => $originalName,
@@ -608,6 +648,39 @@ class TaskController extends Controller
             'size'          => $size,
             'attempt'       => $task->submissions_count,
         ]);
+
+        foreach ($uploadedFiles as $file) {
+            if (!$file || !$file->isValid()) continue;
+
+            $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+            $path = $file->store("{$projectFolder}/tasks/{$task->id}/submissions/attempt-{$submission->attempt}", 'public');
+
+            $submission->files()->create([
+                'task_id'       => $task->id,
+                'project_id'    => $task->project_id,
+                'user_id'       => $user->id,
+                'path'          => $path,
+                'original_name' => $file->getClientOriginalName(),
+                'mime_type'     => $file->getMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+
+            if ($filePath === null) {
+                $filePath     = $path;
+                $originalName = $file->getClientOriginalName();
+                $mimeType     = $file->getMimeType();
+                $size         = $file->getSize();
+            }
+        }
+
+        if ($filePath !== null) {
+            $submission->update([
+                'file_path'     => $filePath,
+                'original_name' => $originalName,
+                'mime_type'     => $mimeType,
+                'size'          => $size,
+            ]);
+        }
 
         $task->update(['status' => 'done']);
 
@@ -637,6 +710,35 @@ class TaskController extends Controller
         abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
 
         return response()->download(Storage::disk('public')->path($submission->file_path), $submission->original_name);
+    }
+
+    public function previewSubmissionFile(Task $task, TaskSubmission $submission, TaskSubmissionFile $file)
+    {
+        $this->authorizeSubmissionFileAccess($task, $submission, $file);
+        abort_unless(str_starts_with((string) $file->mime_type, 'image/') || $file->mime_type === 'application/pdf', 404);
+
+        return response()->file(Storage::disk('public')->path($file->path), [
+            'Content-Type' => $file->mime_type,
+            'Content-Disposition' => 'inline; filename="'.$file->original_name.'"',
+        ]);
+    }
+
+    public function downloadSubmissionFile(Task $task, TaskSubmission $submission, TaskSubmissionFile $file)
+    {
+        $this->authorizeSubmissionFileAccess($task, $submission, $file);
+
+        return response()->download(Storage::disk('public')->path($file->path), $file->original_name);
+    }
+
+    private function authorizeSubmissionFileAccess(Task $task, TaskSubmission $submission, TaskSubmissionFile $file): void
+    {
+        abort_if($submission->task_id !== $task->id, 404);
+        abort_if($file->task_submission_id !== $submission->id || $file->task_id !== $task->id, 404);
+
+        /** @var User $user */
+        $user = Auth::user();
+        abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
+        abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
     }
 
     public function assignLeader(Request $request, Task $task)

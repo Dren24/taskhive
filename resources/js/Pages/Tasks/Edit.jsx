@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage, router } from '@inertiajs/react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
+import AttachmentUploader from '../../Components/AttachmentUploader';
 
 const PRIORITIES = [
     { value: 'low',    label: 'Low',    icon: '🟢', activeClass: 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm' },
@@ -48,7 +49,8 @@ export default function TaskEdit({ task, projects, users, groupMembers = [], isA
     const [commentBody, setCommentBody] = useState('');
     const [submittingComment, setSubmittingComment] = useState(false);
     const [uploadingFile, setUploadingFile] = useState(false);
-    const fileInputRef = useRef(null);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [pendingFiles, setPendingFiles] = useState([]);
 
     const submit = (e) => { e.preventDefault(); put(route('tasks.update', task.id)); };
 
@@ -68,16 +70,20 @@ export default function TaskEdit({ task, projects, users, groupMembers = [], isA
         router.delete(route('tasks.comments.destroy', [task.id, commentId]), { preserveScroll: true });
     };
 
-    const uploadFile = (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    const uploadFiles = () => {
+        if (pendingFiles.length === 0) return;
+
         setUploadingFile(true);
+        setUploadProgress(0);
         const formData = new FormData();
-        formData.append('file', file);
+        pendingFiles.forEach(file => formData.append('files[]', file));
+
         router.post(route('tasks.attachments.store', task.id), formData, {
             forceFormData: true,
             preserveScroll: true,
-            onFinish: () => { setUploadingFile(false); if (fileInputRef.current) fileInputRef.current.value = ''; },
+            onProgress: (progress) => setUploadProgress(progress?.percentage ?? 0),
+            onSuccess: () => setPendingFiles([]),
+            onFinish: () => { setUploadingFile(false); setUploadProgress(0); },
         });
     };
 
@@ -528,6 +534,15 @@ export default function TaskEdit({ task, projects, users, groupMembers = [], isA
                                         <p className="text-[11px] text-gray-400 mt-0.5">{formatSize(a.size)} · {a.user.name}</p>
                                     </div>
                                     <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition">
+                                        {a.preview_url && (
+                                            <a href={a.preview_url} target="_blank" rel="noreferrer"
+                                                className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-100 transition" title="Preview">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                </svg>
+                                            </a>
+                                        )}
                                         <a href={a.download_url} download
                                             className="p-1.5 rounded-lg text-purple-500 hover:bg-purple-100 transition" title="Download">
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -553,28 +568,102 @@ export default function TaskEdit({ task, projects, users, groupMembers = [], isA
                                 </div>
                             )}
 
-                            <label className={`flex items-center justify-center gap-2 w-full py-3 text-xs font-semibold rounded-xl border-2 border-dashed cursor-pointer transition mt-2
-                                ${uploadingFile
-                                    ? 'border-gray-200 text-gray-400 bg-gray-50'
-                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50 hover:border-purple-400'}`}>
-                                {uploadingFile ? (
-                                    <span className="flex items-center gap-1.5">
-                                        <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                                        </svg>
-                                        Uploading…
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center gap-1.5">
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                        </svg>
-                                        Upload File
-                                    </span>
-                                )}
-                                <input ref={fileInputRef} type="file" className="hidden" onChange={uploadFile} disabled={uploadingFile} />
-                            </label>
+                            <AttachmentUploader
+                                files={pendingFiles}
+                                onAdd={(selectedFiles) => setPendingFiles(prev => [...prev, ...selectedFiles])}
+                                onRemove={(index) => setPendingFiles(prev => prev.filter((_, i) => i !== index))}
+                                uploading={uploadingFile}
+                                progress={uploadProgress}
+                                title="Add Attachments"
+                            />
+                            {pendingFiles.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={uploadFiles}
+                                    disabled={uploadingFile}
+                                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:opacity-90 disabled:opacity-60"
+                                >
+                                    {uploadingFile ? `Uploading ${uploadProgress || 0}%` : `Upload ${pendingFiles.length} file${pendingFiles.length === 1 ? '' : 's'}`}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* User submissions card */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="px-5 py-4 border-b border-gray-50 bg-gradient-to-r from-violet-50/40 to-purple-50/20">
+                            <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-purple-100 flex items-center justify-center">
+                                    <svg className="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16.5V18a2 2 0 002 2h12a2 2 0 002-2v-1.5M12 4v11m0 0l-4-4m4 4l4-4" />
+                                    </svg>
+                                </div>
+                                <h2 className="text-sm font-bold text-gray-800">Submissions</h2>
+                                <span className="ml-auto text-xs font-semibold text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
+                                    {task.submissions?.length || 0}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            {(task.submissions || []).map(submission => (
+                                <div key={submission.id} className="rounded-xl border border-purple-100 bg-purple-50/30 p-3">
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-bold text-gray-800">Attempt #{submission.attempt}</p>
+                                            <p className="text-[11px] text-gray-400">{submission.user?.name} · {submission.created_at}</p>
+                                        </div>
+                                    </div>
+                                    {submission.comment && (
+                                        <p className="mb-3 rounded-lg bg-white/70 px-3 py-2 text-xs leading-relaxed text-gray-600">{submission.comment}</p>
+                                    )}
+                                    {(submission.files || []).length > 0 ? (
+                                        <div className="grid gap-2">
+                                            {submission.files.map(file => (
+                                                <div key={file.id} className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-2">
+                                                    {file.preview_url && file.mime_type?.startsWith('image/') ? (
+                                                        <img src={file.preview_url} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                                                    ) : (
+                                                        <FileIcon mime={file.mime_type} />
+                                                    )}
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="truncate text-xs font-semibold text-gray-800">{file.original_name}</p>
+                                                        <p className="text-[11px] text-gray-400">{formatSize(file.size)}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        {file.preview_url && (
+                                                            <a href={file.preview_url} target="_blank" rel="noreferrer" className="rounded-lg p-1.5 text-indigo-500 hover:bg-indigo-50" title="Preview">
+                                                                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12s3.75-6.75 9.75-6.75S21.75 12 21.75 12 18 18.75 12 18.75 2.25 12 2.25 12z" />
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                                </svg>
+                                                            </a>
+                                                        )}
+                                                        <a href={file.download_url} download className="rounded-lg p-1.5 text-purple-500 hover:bg-purple-50" title="Download">
+                                                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                            </svg>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : submission.original_name ? (
+                                        <a href={submission.download_url} download className="text-xs font-semibold text-purple-600 hover:underline">
+                                            {submission.original_name}
+                                        </a>
+                                    ) : (
+                                        <p className="text-xs text-gray-400 italic">No files attached to this submission.</p>
+                                    )}
+                                </div>
+                            ))}
+
+                            {(!task.submissions || task.submissions.length === 0) && (
+                                <div className="text-center py-6">
+                                    <span className="text-2xl">📥</span>
+                                    <p className="text-xs text-gray-400 mt-1">No submissions yet</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 

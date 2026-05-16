@@ -48,6 +48,11 @@ class Task extends Model
         return $this->hasMany(TaskSubmission::class)->latest();
     }
 
+    public function submissionFiles(): HasMany
+    {
+        return $this->hasMany(TaskSubmissionFile::class)->latest();
+    }
+
     public function notifications(): HasMany
     {
         return $this->hasMany(TaskNotification::class);
@@ -58,4 +63,3 @@ class Task extends Model
         return $this->hasMany(TaskVote::class);
     }
 }
-

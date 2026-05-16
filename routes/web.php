@@ -38,8 +38,11 @@ Route::middleware('auth')->group(function () {
     Route::post('tasks/{task}/submit', [TaskController::class, 'submit'])->name('tasks.submit');
     Route::post('tasks/{task}/assign-leader', [TaskController::class, 'assignLeader'])->name('tasks.assign-leader');
     Route::post('tasks/{task}/vote', [TaskController::class, 'castVote'])->name('tasks.vote');
+    Route::get('tasks/{task}/submissions/{submission}/files/{file}/preview', [TaskController::class, 'previewSubmissionFile'])->name('tasks.submissions.files.preview');
+    Route::get('tasks/{task}/submissions/{submission}/files/{file}/download', [TaskController::class, 'downloadSubmissionFile'])->name('tasks.submissions.files.download');
     Route::get('tasks/{task}/submissions/{submission}/download', [TaskController::class, 'downloadSubmission'])->name('tasks.submissions.download');
     Route::post('tasks/{task}/attachments', [TaskAttachmentController::class, 'store'])->name('tasks.attachments.store');
+    Route::get('tasks/{task}/attachments/{attachment}/preview', [TaskAttachmentController::class, 'preview'])->name('tasks.attachments.preview');
     Route::get('tasks/{task}/attachments/{attachment}/download', [TaskAttachmentController::class, 'download'])->name('tasks.attachments.download');
     Route::delete('tasks/{task}/attachments/{attachment}', [TaskAttachmentController::class, 'destroy'])->name('tasks.attachments.destroy');
     Route::post('tasks/{task}/comments', [CommentController::class, 'store'])->name('tasks.comments.store');

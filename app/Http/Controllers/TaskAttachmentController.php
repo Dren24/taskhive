@@ -20,20 +20,33 @@ class TaskAttachmentController extends Controller
         abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
 
         $request->validate([
-            'file' => 'required|file|max:51200', // 50 MB max
+            'file' => 'nullable|file|max:51200',
+            'files' => 'nullable|array|max:10',
+            'files.*' => 'file|max:51200',
         ]);
 
-        $file = $request->file('file');
-        $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
-        $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
+        $uploadedFiles = $request->file('files', []);
+        if ($request->hasFile('file')) {
+            array_unshift($uploadedFiles, $request->file('file'));
+        }
 
-        $task->attachments()->create([
-            'user_id'       => $user->id,
-            'original_name' => $file->getClientOriginalName(),
-            'path'          => $path,
-            'mime_type'     => $file->getMimeType(),
-            'size'          => $file->getSize(),
-        ]);
+        abort_if(empty($uploadedFiles), 422, 'Choose at least one file to upload.');
+
+        foreach ($uploadedFiles as $file) {
+            if (!$file || !$file->isValid()) continue;
+
+            $projectFolder = $task->project_id ? "projects/{$task->project_id}" : 'projects/unassigned';
+            $path = $file->store("{$projectFolder}/tasks/{$task->id}/attachments", 'local');
+
+            $task->attachments()->create([
+                'user_id'       => $user->id,
+                'project_id'    => $task->project_id,
+                'original_name' => $file->getClientOriginalName(),
+                'path'          => $path,
+                'mime_type'     => $file->getMimeType(),
+                'size'          => $file->getSize(),
+            ]);
+        }
 
         if ($user->isAdmin() && $task->user_id !== $user->id) {
             TaskNotification::create([
@@ -43,7 +56,23 @@ class TaskAttachmentController extends Controller
             ]);
         }
 
-        return back()->with('success', 'File uploaded.');
+        return back()->with('success', count($uploadedFiles) === 1 ? 'File uploaded.' : 'Files uploaded.');
+    }
+
+    public function preview(Task $task, TaskAttachment $attachment)
+    {
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        abort_if($task->user_id !== $user->id && !$user->isAdmin(), 403);
+        abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
+        abort_if($attachment->task_id !== $task->id, 404);
+        abort_unless(str_starts_with((string) $attachment->mime_type, 'image/') || $attachment->mime_type === 'application/pdf', 404);
+
+        return response()->file(Storage::disk('local')->path($attachment->path), [
+            'Content-Type' => $attachment->mime_type,
+            'Content-Disposition' => 'inline; filename="'.$attachment->original_name.'"',
+        ]);
     }
 
     public function download(Task $task, TaskAttachment $attachment)

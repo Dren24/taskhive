@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class TaskSubmission extends Model
 {
     protected $fillable = [
-        'task_id', 'user_id', 'comment',
+        'task_id', 'user_id', 'project_id', 'comment',
         'file_path', 'original_name', 'mime_type', 'size', 'attempt',
     ];
 
@@ -19,5 +19,15 @@ class TaskSubmission extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function project()
+    {
+        return $this->belongsTo(Project::class);
+    }
+
+    public function files()
+    {
+        return $this->hasMany(TaskSubmissionFile::class)->latest();
     }
 }

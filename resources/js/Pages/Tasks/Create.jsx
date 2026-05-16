@@ -1,6 +1,7 @@
 import { Head, router } from '@inertiajs/react';
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
+import AttachmentUploader from '../../Components/AttachmentUploader';
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
@@ -13,8 +14,8 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
     const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: '' }]);
     const [files, setFiles] = useState([[]]);   // array of file arrays, one per row
     const [processing, setProcessing] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [errors, setErrors] = useState({});
-    const fileInputRefs = useRef([]);
 
     const updateRow = (i, field, value) => {
         setRows(prev => prev.map((r, idx) => {
@@ -37,23 +38,17 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
     };
 
     const addFiles = (i, newFiles) => {
-        setFiles(prev => prev.map((arr, idx) => idx === i ? [...arr, ...Array.from(newFiles)] : arr));
-        if (fileInputRefs.current[i]) fileInputRefs.current[i].value = '';
+        setFiles(prev => prev.map((arr, idx) => idx === i ? [...arr, ...newFiles] : arr));
     };
 
     const removeFile = (rowIdx, fileIdx) => {
         setFiles(prev => prev.map((arr, idx) => idx === rowIdx ? arr.filter((_, fi) => fi !== fileIdx) : arr));
     };
 
-    const formatSize = (bytes) => {
-        if (bytes < 1024) return `${bytes} B`;
-        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    };
-
     const submit = (e) => {
         e.preventDefault();
         setProcessing(true);
+        setUploadProgress(0);
         const formData = new FormData();
         rows.forEach((row, i) => {
             Object.entries(row).forEach(([key, val]) => {
@@ -65,8 +60,9 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
         });
         router.post(route('tasks.store'), formData, {
             forceFormData: true,
+            onProgress: (progress) => setUploadProgress(progress?.percentage ?? 0),
             onError: (errs) => { setErrors(errs); setProcessing(false); },
-            onFinish: () => setProcessing(false),
+            onFinish: () => { setProcessing(false); setUploadProgress(0); },
         });
     };
 
@@ -175,30 +171,14 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
 
                                     {/* File attachments */}
                                     <div className="sm:col-span-2">
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Attachments <span className="text-gray-400 font-normal">(optional)</span></label>
-                                        {(files[i] || []).length > 0 && (
-                                            <div className="space-y-1.5 mb-2">
-                                                {(files[i] || []).map((f, fi) => (
-                                                    <div key={fi} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-blue-50 border border-blue-100">
-                                                        <span className="text-sm">📄</span>
-                                                        <span className="flex-1 text-xs text-gray-700 truncate">{f.name}</span>
-                                                        <span className="text-xs text-gray-400">{formatSize(f.size)}</span>
-                                                        <button type="button" onClick={() => removeFile(i, fi)}
-                                                            className="text-xs text-rose-400 hover:text-rose-600">✕</button>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                        <label className="flex items-center justify-center gap-2 w-full py-2.5 text-xs font-semibold rounded-xl border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 cursor-pointer transition">
-                                            + Add Files
-                                            <input
-                                                ref={el => fileInputRefs.current[i] = el}
-                                                type="file"
-                                                multiple
-                                                className="hidden"
-                                                onChange={e => addFiles(i, e.target.files)}
-                                            />
-                                        </label>
+                                        <AttachmentUploader
+                                            files={files[i] || []}
+                                            onAdd={(selectedFiles) => addFiles(i, selectedFiles)}
+                                            onRemove={(fileIndex) => removeFile(i, fileIndex)}
+                                            uploading={processing}
+                                            progress={uploadProgress}
+                                            title="Attachments"
+                                        />
                                     </div>
                                 </div>
                             </div>
