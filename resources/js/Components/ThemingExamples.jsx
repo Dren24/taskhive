@@ -196,9 +196,8 @@ export function TaskTableExample({ tasks }) {
     const { isDark } = useTheme();
 
     return (
-        <div className={`rounded-lg border overflow-hidden ${
-            isDark ? 'border-dark-border' : 'border-light-border'
-        }`}>
+        <div className={`rounded-lg border overflow-hidden ${isDark ? 'border-dark-border' : 'border-light-border'
+            }`}>
             <table className="w-full">
                 <thead>
                     <tr className={tableHeaderClass(isDark)}>
@@ -228,11 +227,10 @@ export function TaskTableExample({ tasks }) {
                                 </span>
                             </td>
                             <td className="px-4 py-3 text-right">
-                                <button className={`text-sm px-3 py-1.5 rounded-lg transition ${
-                                    isDark
+                                <button className={`text-sm px-3 py-1.5 rounded-lg transition ${isDark
                                         ? 'text-accent-400 hover:bg-dark-bg-tertiary'
                                         : 'text-accent-600 hover:bg-light-bg-tertiary'
-                                }`}>
+                                    }`}>
                                     Edit
                                 </button>
                             </td>
@@ -255,9 +253,8 @@ export function StatsCardExample({ title, value, icon }) {
             <div className="p-6">
                 <div className="flex items-start justify-between">
                     <div>
-                        <p className={`text-sm font-medium ${
-                            isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
-                        }`}>
+                        <p className={`text-sm font-medium ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                            }`}>
                             {title}
                         </p>
                         <p className="text-3xl font-bold mt-2">
@@ -284,8 +281,8 @@ export function NotificationExample() {
                     <span className="text-xl">
                         {type === 'success' ? '✅'
                             : type === 'warning' ? '⚠️'
-                            : type === 'error' ? '❌'
-                            : 'ℹ️'}
+                                : type === 'error' ? '❌'
+                                    : 'ℹ️'}
                     </span>
                     <div>
                         <p className="font-semibold capitalize">{type} Message</p>
@@ -327,42 +324,44 @@ export default function AdminIndex() {
     return (
         <div>
             {/* Cards with proper theming */}
-            <div className={cardClass(isDark)}>
-                <h2>My Card</h2>
-            </div>
+<div className={cardClass(isDark)}>
+    <h2>My Card</h2>
+</div>
 
-            {/* Badges */}
+{/* Badges */ }
             <span className={priorityBadgeClass('high', isDark)}>High</span>
             <span className={statusBadgeClass('done', false, isDark)}>Done</span>
 
-            {/* Forms with proper theming */}
-            <ThemedInput
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="Type something..."
-            />
+{/* Forms with proper theming */ }
+<ThemedInput
+    value={value}
+    onChange={(e) => setValue(e.target.value)}
+    placeholder="Type something..."
+/>
 
-            {/* Buttons */}
-            <ThemedButton variant="primary" onClick={handleClick}>
-                Click Me
-            </ThemedButton>
+{/* Buttons */ }
+<ThemedButton variant="primary" onClick={handleClick}>
+    Click Me
+</ThemedButton>
 
-            {/* Modals */}
-            {showModal && (
-                <ThemedModal
-                    title="Modal Title"
-                    onClose={() => setShowModal(false)}
-                    footer={
-                        <>
-                            <ThemedButton onClick={() => setShowModal(false)}>Cancel</ThemedButton>
-                            <ThemedButton variant="primary">Save</ThemedButton>
-                        </>
-                    }
-                >
-                    Modal content goes here
-                </ThemedModal>
-            )}
-        </div>
+{/* Modals */ }
+{
+    showModal && (
+        <ThemedModal
+            title="Modal Title"
+            onClose={() => setShowModal(false)}
+            footer={
+                <>
+                    <ThemedButton onClick={() => setShowModal(false)}>Cancel</ThemedButton>
+                    <ThemedButton variant="primary">Save</ThemedButton>
+                </>
+            }
+        >
+            Modal content goes here
+        </ThemedModal>
+    )
+}
+        </div >
     );
 }
 
