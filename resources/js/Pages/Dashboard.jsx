@@ -172,7 +172,7 @@ function CalendarCell({ day, isToday, tasks, selected, onSelect, activityCount, 
 }
 
 /* ── Calendar panel (shared for both admin and regular users) ─────── */
-function CalendarPanel({ calendarTasks, activityLogs = [], isDark }) {
+function CalendarPanel({ calendarTasks, activityLogs = [], isDark, onInspectActivity }) {
     const today = new Date();
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -275,9 +275,10 @@ function CalendarPanel({ calendarTasks, activityLogs = [], isDark }) {
                 ) : (
                     <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                         {dayLogs.map(log => (
-                            <div key={log.id} className={`flex items-start gap-3 border rounded-xl px-3 py-2 ${isDark
+                            <button key={log.id} type="button" onClick={() => onInspectActivity?.(log)}
+                                className={`w-full flex items-start gap-3 border rounded-xl px-3 py-2 text-left transition ${isDark
                                     ? 'bg-dark-bg-tertiary border-dark-border'
-                                    : 'bg-gray-50 border-gray-100'
+                                    : 'bg-gray-50 border-gray-100 hover:border-purple-200 hover:bg-purple-50'
                                 }`}>
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${isDark
                                         ? 'bg-accent-500/20 text-accent-300'
@@ -297,7 +298,7 @@ function CalendarPanel({ calendarTasks, activityLogs = [], isDark }) {
                                     <p className={`text-xs font-medium truncate ${isDark ? 'text-dark-text' : 'text-gray-800'}`}>{log.title}</p>
                                     {log.meta && <p className={`text-[11px] truncate ${isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}`}>{log.meta}</p>}
                                 </div>
-                            </div>
+                            </button>
                         ))}
                     </div>
                 )}
@@ -395,7 +396,181 @@ const ACTION_STYLES = {
     project_updated: { label: 'Project Updated', cls: 'bg-purple-100 text-purple-700' },
 };
 
-function ActivityFeed({ feed, isDark }) {
+function formatBytes(bytes) {
+    if (!bytes) return '0 B';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    return `${(bytes / Math.pow(1024, index)).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function fileIcon(file) {
+    const mime = file?.mime_type || '';
+    const name = (file?.name || '').toLowerCase();
+    if (mime.startsWith('image/')) return '🖼️';
+    if (mime === 'application/pdf' || name.endsWith('.pdf')) return 'PDF';
+    if (name.endsWith('.doc') || name.endsWith('.docx')) return 'DOC';
+    if (name.endsWith('.xls') || name.endsWith('.xlsx')) return 'XLS';
+    if (name.endsWith('.zip') || name.endsWith('.rar')) return 'ZIP';
+    return 'FILE';
+}
+
+function ActivityDetailModal({ activity, isDark, onClose }) {
+    if (!activity) return null;
+
+    const style = ACTION_STYLES[activity.type] || ACTION_STYLES.task_updated;
+    const task = activity.task;
+    const comments = activity.comments?.length ? activity.comments : (activity.comment ? [activity.comment] : []);
+    const files = activity.files?.length ? activity.files : [];
+    const submissions = activity.submission ? [activity.submission] : (task?.submissions || []);
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+            <button type="button" aria-label="Close activity details" onClick={onClose}
+                className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" />
+            <div className={`relative w-full max-w-3xl max-h-[88vh] overflow-hidden rounded-2xl border shadow-2xl animate-popup ${isDark
+                    ? 'bg-dark-bg-secondary border-dark-border'
+                    : 'bg-white border-purple-100'
+                }`}>
+                <div className={`px-5 py-4 border-b ${isDark ? 'border-dark-border bg-dark-bg-tertiary' : 'border-purple-100 bg-purple-50/70'}`}>
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 min-w-0">
+                            <Avatar name={activity.user?.name || activity.user_name} size="w-11 h-11" textSize="text-sm" isDark={isDark} />
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className={`text-base font-bold ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>{style.label}</h2>
+                                    <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${style.cls}`}>{style.label}</span>
+                                </div>
+                                <p className={`text-sm mt-1 ${isDark ? 'text-dark-text-secondary' : 'text-gray-600'}`}>
+                                    <span className="font-semibold">{activity.user?.name || activity.user_name}</span>
+                                    <span className="capitalize"> · {activity.user?.role || 'user'}</span>
+                                    <span> · {activity.occurred_at_display || activity.occurred_at}</span>
+                                </p>
+                            </div>
+                        </div>
+                        <button type="button" onClick={onClose}
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition ${isDark ? 'hover:bg-dark-bg-secondary text-dark-text-secondary' : 'hover:bg-white text-gray-500'}`}>
+                            ×
+                        </button>
+                    </div>
+                </div>
+
+                <div className="max-h-[calc(88vh-86px)] overflow-y-auto p-5 space-y-4">
+                    <section className={`rounded-2xl border p-4 ${isDark ? 'border-dark-border bg-dark-bg-tertiary' : 'border-gray-100 bg-gray-50'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                            <div>
+                                <p className={`text-xs font-bold uppercase tracking-wide ${isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}`}>Activity Reference</p>
+                                <h3 className={`text-lg font-bold mt-1 ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>{activity.title}</h3>
+                                {activity.meta && <p className={`text-sm mt-1 ${isDark ? 'text-dark-text-secondary' : 'text-gray-500'}`}>{activity.meta}</p>}
+                            </div>
+                            {activity.reference?.url && (
+                                <Link href={activity.reference.url}
+                                    className={`inline-flex items-center justify-center px-3 py-2 rounded-xl text-xs font-semibold transition ${isDark ? 'bg-accent-500/20 text-accent-200 hover:bg-accent-500/30' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>
+                                    Open {activity.reference.type}
+                                </Link>
+                            )}
+                        </div>
+                    </section>
+
+                    {task && (
+                        <section className={`rounded-2xl border p-4 ${isDark ? 'border-dark-border' : 'border-gray-100'}`}>
+                            <div className="flex items-center justify-between gap-3 mb-3">
+                                <h3 className={`text-sm font-bold ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>Task Snapshot</h3>
+                                <div className="flex gap-2">
+                                    <span className={priorityBadgeClass(task.priority, isDark)}>{task.priority}</span>
+                                    <span className={statusBadgeClass(task.status, false, isDark)}>{statusLabel({ status: task.status })}</span>
+                                </div>
+                            </div>
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm ${isDark ? 'text-dark-text-secondary' : 'text-gray-600'}`}>
+                                <p><span className="font-semibold">Assignee:</span> {task.assignee?.name || 'Unassigned'}</p>
+                                <p><span className="font-semibold">Due:</span> {task.due_date || 'No date'}{task.due_time ? ` · ${formatTime(task.due_time)}` : ''}</p>
+                                {task.project && <p><span className="font-semibold">Project:</span> {task.project.name}</p>}
+                            </div>
+                            {task.description && (
+                                <div className={`mt-3 rounded-xl p-3 text-sm whitespace-pre-wrap ${isDark ? 'bg-dark-bg-tertiary text-dark-text-secondary' : 'bg-gray-50 text-gray-600'}`}>
+                                    {task.description}
+                                </div>
+                            )}
+                        </section>
+                    )}
+
+                    {submissions.length > 0 && (
+                        <section className={`rounded-2xl border p-4 ${isDark ? 'border-dark-border' : 'border-gray-100'}`}>
+                            <h3 className={`text-sm font-bold mb-3 ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>Submission Details</h3>
+                            <div className="space-y-3">
+                                {submissions.map(submission => (
+                                    <div key={submission.id} className={`rounded-xl p-3 ${isDark ? 'bg-dark-bg-tertiary' : 'bg-purple-50/60'}`}>
+                                        <p className={`text-xs font-semibold ${isDark ? 'text-dark-text-tertiary' : 'text-gray-500'}`}>
+                                            Attempt {submission.attempt || 1} · {submission.user?.name || 'Unknown'} · {submission.created_at}
+                                        </p>
+                                        {submission.comment ? (
+                                            <p className={`mt-2 text-sm whitespace-pre-wrap ${isDark ? 'text-dark-text-secondary' : 'text-gray-700'}`}>{submission.comment}</p>
+                                        ) : (
+                                            <p className={`mt-2 text-sm ${isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}`}>No submitted text.</p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {files.length > 0 && (
+                        <section className={`rounded-2xl border p-4 ${isDark ? 'border-dark-border' : 'border-gray-100'}`}>
+                            <h3 className={`text-sm font-bold mb-3 ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>Uploaded Files</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {files.map(file => (
+                                    <div key={`${file.id}-${file.name}`} className={`rounded-xl border p-3 ${isDark ? 'border-dark-border bg-dark-bg-tertiary' : 'border-gray-100 bg-white'}`}>
+                                        <div className="flex gap-3">
+                                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${isDark ? 'bg-accent-500/20 text-accent-200' : 'bg-purple-100 text-purple-700'}`}>
+                                                {fileIcon(file)}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className={`text-sm font-semibold truncate ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>{file.name}</p>
+                                                <p className={`text-xs mt-0.5 ${isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}`}>{formatBytes(file.size)} · {file.created_at || 'Uploaded'}</p>
+                                                <div className="flex flex-wrap gap-2 mt-2">
+                                                    {file.preview_url && (
+                                                        <a href={file.preview_url} target="_blank" rel="noreferrer"
+                                                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${isDark ? 'bg-dark-bg-secondary text-accent-300' : 'bg-purple-50 text-purple-700'}`}>
+                                                            Preview
+                                                        </a>
+                                                    )}
+                                                    {file.download_url && (
+                                                        <a href={file.download_url}
+                                                            className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${isDark ? 'bg-accent-500/20 text-accent-200' : 'bg-purple-600 text-white'}`}>
+                                                            Download
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+
+                    {comments.length > 0 && (
+                        <section className={`rounded-2xl border p-4 ${isDark ? 'border-dark-border' : 'border-gray-100'}`}>
+                            <h3 className={`text-sm font-bold mb-3 ${isDark ? 'text-dark-text' : 'text-gray-900'}`}>Comment Thread</h3>
+                            <div className="space-y-3">
+                                {comments.map(comment => (
+                                    <div key={comment.id} className="flex gap-3">
+                                        <Avatar name={comment.user?.name} size="w-8 h-8" textSize="text-[11px]" isDark={isDark} />
+                                        <div className={`flex-1 rounded-xl p-3 ${isDark ? 'bg-dark-bg-tertiary' : 'bg-gray-50'}`}>
+                                            <p className={`text-xs font-semibold ${isDark ? 'text-dark-text' : 'text-gray-800'}`}>{comment.user?.name || 'Unknown'} <span className={isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}>· {comment.created_at}</span></p>
+                                            <p className={`text-sm mt-1 whitespace-pre-wrap ${isDark ? 'text-dark-text-secondary' : 'text-gray-600'}`}>{comment.body}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ActivityFeed({ feed, isDark, onInspectActivity }) {
     return (
         <div className={`rounded-2xl shadow-sm border p-5 ${isDark
                 ? 'bg-dark-bg-secondary border-dark-border'
@@ -413,7 +588,8 @@ function ActivityFeed({ feed, isDark }) {
                     {feed.map((item, i) => {
                         const style = ACTION_STYLES[item.type] || ACTION_STYLES.task_updated;
                         return (
-                            <div key={i} className="flex items-start gap-3">
+                            <button key={i} type="button" onClick={() => onInspectActivity?.(item)}
+                                className={`w-full flex items-start gap-3 rounded-xl p-2 text-left transition ${isDark ? 'hover:bg-dark-bg-tertiary' : 'hover:bg-purple-50'}`}>
                                 <Avatar name={item.user_name} isDark={isDark} />
                                 <div className="flex-1 min-w-0">
                                     <p className={`text-xs leading-snug ${isDark ? 'text-dark-text-secondary' : 'text-gray-700'}`}>
@@ -430,7 +606,7 @@ function ActivityFeed({ feed, isDark }) {
                                         <p className={`text-[11px] mt-1 truncate ${isDark ? 'text-dark-text-tertiary' : 'text-gray-400'}`}>{item.meta}</p>
                                     )}
                                 </div>
-                            </div>
+                            </button>
                         );
                     })}
                 </div>
@@ -509,6 +685,7 @@ function UserIntelligence({ users, isDark }) {
 export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminStats, activityFeed, userIntelligence, activityLogs = [] }) {
     const { auth } = usePage().props;
     const { isDark } = useTheme();
+    const [selectedActivity, setSelectedActivity] = useState(null);
 
     const trendBadge = (trend) => {
         if (!trend) return null;
@@ -647,12 +824,12 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
                 {/* ── Main 2-col layout ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left: Calendar (shared) */}
-                    <CalendarPanel calendarTasks={calendarTasks} activityLogs={activityLogs} isDark={isDark} />
+                    <CalendarPanel calendarTasks={calendarTasks} activityLogs={activityLogs} isDark={isDark} onInspectActivity={setSelectedActivity} />
 
                     {/* Right: admin feed OR user recent tasks */}
                     {isAdmin ? (
                         <div className="flex flex-col gap-0">
-                            <ActivityFeed feed={activityFeed} isDark={isDark} />
+                            <ActivityFeed feed={activityFeed} isDark={isDark} onInspectActivity={setSelectedActivity} />
                             <UserIntelligence users={userIntelligence} isDark={isDark} />
                         </div>
                     ) : (
@@ -660,6 +837,7 @@ export default function Dashboard({ tasks, stats, calendarTasks, isAdmin, adminS
                     )}
                 </div>
             </div>
+            <ActivityDetailModal activity={selectedActivity} isDark={isDark} onClose={() => setSelectedActivity(null)} />
         </AppLayout>
     );
 }

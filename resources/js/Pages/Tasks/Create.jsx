@@ -1,21 +1,110 @@
 import { Head, router } from '@inertiajs/react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import AppLayout from '../../Layouts/AppLayout';
 import AttachmentUploader from '../../Components/AttachmentUploader';
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const STATUSES = ['todo', 'in_progress', 'done'];
 
-function emptyRow(authId) {
-    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', due_time: '', project_id: '', assign_to: authId || '', max_submissions: '' };
+function emptyRow() {
+    return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', due_time: '', project_id: '', assign_to: '', max_submissions: '' };
 }
 
-export default function TaskCreate({ users, isAdmin, authId }) {
-    const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: '' }]);
+function initials(name = '') {
+    return name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(part => part[0]?.toUpperCase())
+        .join('') || 'U';
+}
+
+function UserPicker({ users, value, onChange, rowId }) {
+    const [query, setQuery] = useState('');
+    const selected = users.find(user => String(user.id) === String(value));
+    const filteredUsers = useMemo(() => {
+        const term = query.trim().toLowerCase();
+        if (!term) return users;
+
+        return users.filter(user => user.name.toLowerCase().includes(term));
+    }, [query, users]);
+
+    return (
+        <div>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">
+                Assign To <span className="text-rose-500">*</span>
+            </label>
+            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-purple-400 dark:border-slate-700 dark:bg-slate-900">
+                <div className="p-3 border-b border-gray-100 dark:border-slate-800">
+                    <input
+                        type="search"
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        placeholder="Search non-admin users..."
+                        aria-label={`Search users for task ${rowId + 1}`}
+                        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-800 outline-none transition focus:border-purple-300 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-purple-500"
+                    />
+                </div>
+
+                {selected && (
+                    <div className="mx-3 mt-3 flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 dark:border-purple-500/40 dark:bg-purple-500/10">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-purple-600 text-xs font-bold text-white">
+                            {initials(selected.name)}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-gray-900 dark:text-slate-100">{selected.name}</p>
+                            <p className="text-xs text-purple-600 dark:text-purple-300">Selected staff assignee</p>
+                        </div>
+                    </div>
+                )}
+
+                <div className="max-h-56 overflow-y-auto p-2">
+                    {filteredUsers.length === 0 ? (
+                        <div className="px-3 py-5 text-center text-xs text-gray-400 dark:text-slate-500">
+                            No non-admin users found.
+                        </div>
+                    ) : (
+                        filteredUsers.map(user => {
+                            const active = String(user.id) === String(value);
+
+                            return (
+                                <button
+                                    type="button"
+                                    key={user.id}
+                                    onClick={() => onChange(String(user.id))}
+                                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition duration-150 ${active
+                                        ? 'bg-purple-600 text-white shadow-sm'
+                                        : 'text-gray-700 hover:bg-purple-50 dark:text-slate-200 dark:hover:bg-purple-500/10'
+                                    }`}
+                                >
+                                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-white/20 text-white' : 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200'}`}>
+                                        {initials(user.name)}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold">{user.name}</p>
+                                        <p className={`text-xs capitalize ${active ? 'text-purple-100' : 'text-gray-400 dark:text-slate-500'}`}>{user.role || 'user'}</p>
+                                    </div>
+                                    {active && <span className="text-xs font-semibold">Selected</span>}
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+export default function TaskCreate({ users, isAdmin }) {
+    const [rows, setRows] = useState([{ ...emptyRow(), project_id: '' }]);
     const [files, setFiles] = useState([[]]);   // array of file arrays, one per row
     const [processing, setProcessing] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [errors, setErrors] = useState({});
+    const assignableUsers = useMemo(
+        () => (users || []).filter(user => !user.is_admin && user.role !== 'admin'),
+        [users]
+    );
 
     const updateRow = (i, field, value) => {
         setRows(prev => prev.map((r, idx) => {
@@ -25,7 +114,7 @@ export default function TaskCreate({ users, isAdmin, authId }) {
     };
 
     const addRow = () => {
-        setRows(prev => [...prev, { ...emptyRow(authId), project_id: '' }]);
+        setRows(prev => [...prev, { ...emptyRow(), project_id: '' }]);
         setFiles(prev => [...prev, []]);
     };
 
@@ -44,6 +133,10 @@ export default function TaskCreate({ users, isAdmin, authId }) {
 
     const submit = (e) => {
         e.preventDefault();
+        if (isAdmin && rows.some(row => !row.assign_to)) {
+            setErrors({ assign_to: 'Choose a non-admin user for every task.' });
+            return;
+        }
         setProcessing(true);
         setUploadProgress(0);
         const formData = new FormData();
@@ -129,16 +222,15 @@ export default function TaskCreate({ users, isAdmin, authId }) {
                                         <input type="time" value={row.due_time} onChange={e => updateRow(i, 'due_time', e.target.value)}
                                             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                                     </div>
-                                    {isAdmin && users && users.length > 0 && (
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Assign To *</label>
-                                            <select value={row.assign_to} onChange={e => updateRow(i, 'assign_to', e.target.value)}
-                                                required
-                                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                                <option value="">Select user</option>
-                                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                            </select>
-                                            <p className="text-xs text-gray-400 mt-1">Global tasks can be assigned to any workspace user.</p>
+                                    {isAdmin && (
+                                        <div className="sm:col-span-2">
+                                            <UserPicker
+                                                users={assignableUsers}
+                                                value={row.assign_to}
+                                                onChange={(value) => updateRow(i, 'assign_to', value)}
+                                                rowId={i}
+                                            />
+                                            <p className="text-xs text-gray-400 dark:text-slate-500 mt-1">Global tasks can be assigned to any non-admin user in the system.</p>
                                         </div>
                                     )}
                                     {isAdmin && (

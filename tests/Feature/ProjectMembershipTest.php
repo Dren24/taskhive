@@ -114,7 +114,7 @@ class ProjectMembershipTest extends TestCase
     public function test_global_task_creation_does_not_require_project_folder(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
-        $member = User::factory()->create(['role' => 'user', 'admin_id' => $admin->id]);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => null]);
 
         $response = $this->actingAs($admin)->post(route('tasks.store'), [
             'tasks' => [[
@@ -136,6 +136,45 @@ class ProjectMembershipTest extends TestCase
             'user_id' => $member->id,
             'project_id' => null,
         ]);
+    }
+
+    public function test_global_task_creation_rejects_admin_assignees(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $otherAdmin = User::factory()->create(['role' => 'admin']);
+
+        $response = $this->actingAs($admin)->post(route('tasks.store'), [
+            'tasks' => [[
+                'title' => 'Admin Assigned Task',
+                'description' => null,
+                'priority' => 'medium',
+                'status' => 'todo',
+                'due_date' => now()->addDay()->format('Y-m-d'),
+                'due_time' => '',
+                'project_id' => '',
+                'assign_to' => $otherAdmin->id,
+                'max_submissions' => '',
+            ]],
+        ]);
+
+        $response->assertStatus(422);
+        $this->assertDatabaseMissing('tasks', [
+            'title' => 'Admin Assigned Task',
+            'user_id' => $otherAdmin->id,
+        ]);
+    }
+
+    public function test_global_task_create_page_lists_non_admin_users_only(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'name' => 'Primary Admin']);
+        $otherAdmin = User::factory()->create(['role' => 'admin', 'name' => 'Hidden Admin']);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => null, 'name' => 'Visible Staff']);
+
+        $response = $this->actingAs($admin)->get(route('tasks.create'));
+
+        $response->assertOk();
+        $response->assertSee($member->name);
+        $response->assertDontSee($otherAdmin->name);
     }
 
     public function test_global_task_page_excludes_project_folder_tasks(): void

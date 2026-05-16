@@ -69,7 +69,7 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereNull('project_id')->whereIn('user_id', $user->workspaceUserIds())->latest()->get()
+            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereNull('project_id')->whereHas('user', fn($q) => $q->where('role', '!=', 'admin'))->latest()->get()
             : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereNull('project_id')->latest()->get();
 
         // Build group_id → [members] map so every group task card can show all voters
@@ -161,7 +161,7 @@ class TaskController extends Controller
         abort_if(!$user->isAdmin(), 403, 'Only admins can create tasks.');
         $projects = $this->userProjects($user);
         $users = $user->isAdmin()
-            ? User::whereKey($user->workspaceUserIds())->orderBy('name')->get()
+            ? User::where('role', '!=', 'admin')->orderBy('name')->get()
             : collect();
 
         // Build project→users map so the frontend can filter by selected project
@@ -180,7 +180,12 @@ class TaskController extends Controller
 
         return Inertia::render('Tasks/Create', [
             'projects'     => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-            'users'        => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+            'users'        => $users->map(fn($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'role' => $u->role,
+                'is_admin' => $u->isAdmin(),
+            ]),
             'projectUsers' => $projectUsers,
             'isAdmin'      => $user->isAdmin(),
             'authId'       => $user->id,
@@ -216,13 +221,14 @@ class TaskController extends Controller
         ]);
 
         foreach ($request->input('tasks') as $index => $taskData) {
+            $projectId = !empty($taskData['project_id']) ? (int) $taskData['project_id'] : null;
+
             /** @var User $targetUser */
             $targetUser = ($authUser->isAdmin() && !empty($taskData['assign_to']))
                 ? User::findOrFail($taskData['assign_to'])
                 : $authUser;
-            abort_if($authUser->isAdmin() && $targetUser->id !== $authUser->id && $targetUser->admin_id !== $authUser->id, 403, 'Choose a user connected to your workspace.');
+            abort_if($targetUser->isAdmin(), 422, 'Choose a non-admin user to assign this task.');
 
-            $projectId = !empty($taskData['project_id']) ? (int) $taskData['project_id'] : null;
             if ($projectId !== null) {
                 abort_unless($this->hasProjectAccess($authUser->isAdmin() ? $authUser : $targetUser, $projectId), 422, 'Choose a project folder assigned to this workspace.');
                 abort_if(
@@ -326,6 +332,7 @@ class TaskController extends Controller
         foreach ($request->input('tasks') as $taskData) {
             /** @var User $targetUser */
             $targetUser = User::findOrFail($taskData['assign_to']);
+            abort_if($targetUser->isAdmin(), 422, 'Choose non-admin users for task assignment.');
             abort_if($targetUser->admin_id !== $authUser->id, 403, 'Choose users connected to your workspace.');
             abort_if(
                 !Project::where('id', (int) $taskData['project_id'])->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(),
@@ -364,7 +371,7 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_if($task->user_id !== Auth::id() && !$user->isAdmin(), 403);
-        abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
+        abort_if($user->isAdmin() && $task->project_id !== null && !$user->workspaceUserIds()->contains($task->user_id), 403);
 
         if ($task->status === 'done' && !$user->isAdmin()) {
             return redirect()->route('tasks.index')
@@ -373,7 +380,7 @@ class TaskController extends Controller
 
         $projects = $this->userProjects();
         $task->load(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes']);
-        $users = $user->isAdmin() ? $user->managedUsers()->orderBy('name')->get(['id','name']) : collect();
+        $users = $user->isAdmin() ? User::where('role', '!=', 'admin')->orderBy('name')->get(['id','name', 'role']) : collect();
 
         // For group tasks, find all group members (users whose tasks share same group_id)
         $groupMembers = [];
@@ -444,7 +451,7 @@ class TaskController extends Controller
                 ]),
             ],
             'projects'     => $projects->map(fn($p) => ['id' => $p->id, 'name' => $p->name]),
-            'users'        => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name]),
+            'users'        => $users->map(fn($u) => ['id' => $u->id, 'name' => $u->name, 'role' => $u->role, 'is_admin' => $u->isAdmin()]),
             'groupMembers' => $groupMembers,
             'isAdmin'      => $user->isAdmin(),
             'authId'       => Auth::id(),
@@ -456,7 +463,7 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_if($task->user_id !== Auth::id() && !$user->isAdmin(), 403);
-        abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
+        abort_if($user->isAdmin() && $task->project_id !== null && !$user->workspaceUserIds()->contains($task->user_id), 403);
 
         if ($task->status === 'done' && !$user->isAdmin()) {
             return redirect()->route('tasks.index')
@@ -486,7 +493,7 @@ class TaskController extends Controller
                 ? User::findOrFail($validated['user_id'])
                 : $task->user;
             $projectId = !empty($validated['project_id']) ? (int) $validated['project_id'] : null;
-            abort_if($targetUser->id !== $user->id && $targetUser->admin_id !== $user->id, 403, 'Choose a user connected to your workspace.');
+            abort_if($targetUser->isAdmin(), 422, 'Choose a non-admin user to assign this task.');
 
             if ($projectId !== null) {
                 abort_unless($this->hasProjectAccess($user, $projectId), 422, 'Choose a project folder assigned to your workspace.');
@@ -505,7 +512,7 @@ class TaskController extends Controller
         $user = Auth::user();
         // Only admins can delete tasks
         abort_if(!$user->isAdmin(), 403);
-        abort_if(!$user->workspaceUserIds()->contains($task->user_id), 403);
+        abort_if($task->project_id !== null && !$user->workspaceUserIds()->contains($task->user_id), 403);
         $task->delete();
         return redirect()->route('tasks.index')->with('success', 'Task deleted successfully.');
     }
@@ -515,7 +522,7 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         abort_if($task->user_id !== Auth::id() && !$user->isAdmin(), 403);
-        abort_if($user->isAdmin() && !$user->workspaceUserIds()->contains($task->user_id), 403);
+        abort_if($user->isAdmin() && $task->project_id !== null && !$user->workspaceUserIds()->contains($task->user_id), 403);
         // Non-admins cannot reopen a completed task
         abort_if($task->status === 'done' && !$user->isAdmin(), 403);
         // Non-admins cannot toggle overdue (missing) tasks
