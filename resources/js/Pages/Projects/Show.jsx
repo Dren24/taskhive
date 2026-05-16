@@ -63,12 +63,12 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
 
     const submitGroupTask = (e) => {
         e.preventDefault();
-        if (!gtTitle.trim() || gtSelectedUsers.length === 0) return;
+        if (!gtTitle.trim() || !gtDueDate || gtSelectedUsers.length === 0) return;
         const tasks = gtSelectedUsers.map(userId => ({
             title: gtTitle.trim(),
             description: gtDescription.trim(),
             priority: gtPriority,
-            due_date: gtDueDate || null,
+            due_date: gtDueDate,
             due_time: gtDueTime || null,
             assign_to: userId,
             project_id: project.id,
@@ -539,14 +539,19 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date</label>
+                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">
+                                        Date <span className="text-rose-500">*</span>
+                                    </label>
                                     <input type="date" value={gtDueDate} onChange={e => setGtDueDate(e.target.value)}
-                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                        required
+                                        aria-describedby="group-task-date-hint"
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                                    <p id="group-task-date-hint" className="mt-1 text-xs text-gray-400 dark:text-slate-500">Required deadline date, shown as mm/dd/yyyy.</p>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Time</label>
+                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Time <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span></label>
                                     <input type="time" value={gtDueTime} onChange={e => setGtDueTime(e.target.value)}
-                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                                 </div>
                             </div>
                             <div>
@@ -621,7 +626,7 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                     className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
                                     Cancel
                                 </button>
-                                <button type="submit" disabled={gtSubmitting || !gtTitle.trim() || gtSelectedUsers.length === 0}
+                                <button type="submit" disabled={gtSubmitting || !gtTitle.trim() || !gtDueDate || gtSelectedUsers.length === 0}
                                     className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
                                     style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                                     {gtSubmitting ? 'Creating...' : `Create for ${gtSelectedUsers.length || 0} user${gtSelectedUsers.length !== 1 ? 's' : ''}`}
@@ -634,4 +639,3 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
         </AppLayout>
     );
 }
-

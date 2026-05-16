@@ -209,7 +209,11 @@ class TaskController extends Controller
             'files.*.*'                => 'sometimes|file|max:51200',
         ];
 
-        $request->validate($rules);
+        $request->validate($rules, [
+            'tasks.*.due_date.required' => 'Choose a deadline date.',
+            'tasks.*.due_date.date' => 'Choose a valid deadline date.',
+            'tasks.*.due_time.date_format' => 'Choose a valid deadline time.',
+        ]);
 
         foreach ($request->input('tasks') as $index => $taskData) {
             /** @var User $targetUser */
@@ -299,13 +303,17 @@ class TaskController extends Controller
             'tasks.*.title'      => 'required|string|max:255',
             'tasks.*.description' => 'nullable|string',
             'tasks.*.priority'   => 'required|in:low,medium,high',
-            'tasks.*.due_date'   => 'nullable|date',
+            'tasks.*.due_date'   => 'required|date',
             'tasks.*.due_time'   => 'nullable|date_format:H:i',
             'tasks.*.project_id' => 'required|exists:projects,id',
             'tasks.*.assign_to'  => 'required|exists:users,id',
             'tasks.*.status'     => 'nullable|in:todo,in_progress,done',
             'submission_mode'    => 'nullable|in:manual,voting',
             'leader_user_id'     => 'nullable|exists:users,id',
+        ], [
+            'tasks.*.due_date.required' => 'Choose a deadline date.',
+            'tasks.*.due_date.date' => 'Choose a valid deadline date.',
+            'tasks.*.due_time.date_format' => 'Choose a valid deadline time.',
         ]);
 
         $groupId       = (string) Str::uuid();

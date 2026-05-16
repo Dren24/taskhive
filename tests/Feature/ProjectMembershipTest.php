@@ -110,4 +110,82 @@ class ProjectMembershipTest extends TestCase
             ->where('project_id', $project->id)
             ->exists());
     }
+
+    public function test_task_creation_requires_deadline_date_but_not_time(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => $admin->id]);
+        $project = Project::create([
+            'user_id' => $member->id,
+            'name' => 'Client Work',
+            'color' => '#8B5CF6',
+        ]);
+        $project->members()->attach($member->id);
+
+        $missingDate = $this->actingAs($admin)->from(route('tasks.create'))->post(route('tasks.store'), [
+            'tasks' => [[
+                'title' => 'Needs Date',
+                'description' => null,
+                'priority' => 'medium',
+                'status' => 'todo',
+                'due_date' => '',
+                'due_time' => '',
+                'project_id' => $project->id,
+                'assign_to' => $member->id,
+                'max_submissions' => '',
+            ]],
+        ]);
+
+        $missingDate->assertRedirect(route('tasks.create'));
+        $missingDate->assertSessionHasErrors('tasks.0.due_date');
+
+        $dateOnly = $this->actingAs($admin)->post(route('tasks.store'), [
+            'tasks' => [[
+                'title' => 'Date Only',
+                'description' => null,
+                'priority' => 'medium',
+                'status' => 'todo',
+                'due_date' => now()->addDay()->format('Y-m-d'),
+                'due_time' => '',
+                'project_id' => $project->id,
+                'assign_to' => $member->id,
+                'max_submissions' => '',
+            ]],
+        ]);
+
+        $dateOnly->assertRedirect(route('tasks.index'));
+        $this->assertDatabaseHas('tasks', [
+            'title' => 'Date Only',
+            'user_id' => $member->id,
+            'due_time' => null,
+        ]);
+    }
+
+    public function test_group_task_creation_requires_deadline_date(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => $admin->id]);
+        $project = Project::create([
+            'user_id' => $member->id,
+            'name' => 'Client Work',
+            'color' => '#8B5CF6',
+        ]);
+        $project->members()->attach($member->id);
+
+        $response = $this->actingAs($admin)->from(route('projects.show', $project))->post(route('tasks.store.group'), [
+            'tasks' => [[
+                'title' => 'Group Task',
+                'description' => null,
+                'priority' => 'medium',
+                'status' => 'todo',
+                'due_date' => '',
+                'due_time' => '',
+                'project_id' => $project->id,
+                'assign_to' => $member->id,
+            ]],
+        ]);
+
+        $response->assertRedirect(route('projects.show', $project));
+        $response->assertSessionHasErrors('tasks.0.due_date');
+    }
 }

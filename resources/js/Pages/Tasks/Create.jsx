@@ -118,15 +118,19 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
                                         </select>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Due Date *</label>
+                                        <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">
+                                            Date <span className="text-rose-500">*</span>
+                                        </label>
                                         <input type="date" value={row.due_date} onChange={e => updateRow(i, 'due_date', e.target.value)}
                                             required
-                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                            aria-describedby={`task-${i}-date-hint`}
+                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+                                        <p id={`task-${i}-date-hint`} className="mt-1 text-xs text-gray-400 dark:text-slate-500">Required deadline date, shown as mm/dd/yyyy.</p>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-500 mb-1.5">Deadline Time <span className="text-gray-400 font-normal">(optional)</span></label>
+                                        <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Time <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span></label>
                                         <input type="time" value={row.due_time} onChange={e => updateRow(i, 'due_time', e.target.value)}
-                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400" />
+                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                                     </div>
                                     {projects && projects.length > 0 && (
                                         <div>
