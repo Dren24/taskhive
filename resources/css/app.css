@@ -34,12 +34,48 @@
     }
 
     body {
-        @apply bg-light-bg dark:bg-dark-bg text-light-text dark:text-dark-text transition-colors duration-300;
+        @apply transition-colors duration-300;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
     }
 
     /* Smooth transitions for theme switching */
     * {
         @apply transition-colors duration-300;
+    }
+
+    /* Links */
+    a {
+        @apply text-accent-600 dark:text-accent-400 hover:underline;
+    }
+
+    /* Tables */
+    table {
+        @apply w-full;
+    }
+
+    /* Form elements baseline */
+    input, textarea, select {
+        @apply transition-colors duration-200;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgb(168, 85, 247);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgb(147, 51, 234);
     }
 }
 
