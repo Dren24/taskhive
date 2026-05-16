@@ -7,6 +7,22 @@ export default function AppLayout({ title, children }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const [bellOpen, setBellOpen] = useState(false);
     const bellRef = useRef(null);
+    const [dark, setDark] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('theme') === 'dark';
+        }
+        return false;
+    });
+
+    useEffect(() => {
+        if (dark) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [dark]);
     const isAdmin = auth?.user?.role === 'admin';
     const unread = notifications.filter(n => !n.read);
 
@@ -36,9 +52,9 @@ export default function AppLayout({ title, children }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
             {/* Top Nav */}
-            <nav className="bg-gradient-to-r from-purple-700 via-purple-600 to-purple-700 border-b border-purple-800 sticky top-0 z-30">
+            <nav className="bg-gradient-to-r from-purple-700 via-purple-600 to-purple-700 dark:from-purple-900 dark:via-purple-800 dark:to-purple-900 border-b border-purple-800 sticky top-0 z-30">
                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-14">
                         {/* Logo */}
@@ -58,6 +74,23 @@ export default function AppLayout({ title, children }) {
 
                         {/* User area */}
                         <div className="hidden sm:flex items-center gap-3">
+                            {/* Dark mode toggle */}
+                            <button
+                                onClick={() => setDark(d => !d)}
+                                className="p-1.5 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition"
+                                aria-label="Toggle dark mode"
+                            >
+                                {dark ? (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                    </svg>
+                                )}
+                            </button>
+
                             {/* Bell */}
                             <div className="relative" ref={bellRef}>
                                 <button
@@ -76,9 +109,9 @@ export default function AppLayout({ title, children }) {
                                 </button>
 
                                 {bellOpen && (
-                                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
-                                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                                            <span className="text-sm font-semibold text-gray-700">Notifications</span>
+                                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden z-50">
+                                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
+                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Notifications</span>
                                             {unread.length > 0 && (
                                                 <button onClick={markAllRead} className="text-xs text-purple-600 hover:underline">
                                                     Mark all read
@@ -203,7 +236,7 @@ export default function AppLayout({ title, children }) {
             {/* Main content */}
             <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {title && (
-                    <h1 className="text-xl font-bold text-gray-900 mb-6">{title}</h1>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{title}</h1>
                 )}
                 {children}
             </main>

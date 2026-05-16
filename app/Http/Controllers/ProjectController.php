@@ -141,7 +141,7 @@ class ProjectController extends Controller
             : $user->allProjects()->orderBy('name')->get(['id', 'name']);
 
         $assignableUsers = $user->isAdmin()
-            ? \App\Models\User::where('role', 'user')->orderBy('name')->get(['id', 'name'])
+            ? $project->members()->where('users.role', 'user')->orderBy('users.name')->get(['users.id', 'users.name'])
             : collect();
 
         return Inertia::render('Projects/Show', [
