@@ -69,8 +69,8 @@ class TaskController extends Controller
         /** @var User $user */
         $user = Auth::user();
         $tasks = $user->isAdmin()
-            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereIn('user_id', $user->workspaceUserIds())->latest()->get()
-            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->latest()->get();
+            ? Task::with(['user', 'comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereNull('project_id')->whereIn('user_id', $user->workspaceUserIds())->latest()->get()
+            : $user->tasks()->with(['comments.user', 'attachments.user', 'submissions.user', 'submissions.files', 'leader', 'votes'])->withCount('comments')->whereNull('project_id')->latest()->get();
 
         // Build group_id → [members] map so every group task card can show all voters
         $groupIds = $tasks->pluck('group_id')->filter()->unique()->values();
@@ -161,7 +161,7 @@ class TaskController extends Controller
         abort_if(!$user->isAdmin(), 403, 'Only admins can create tasks.');
         $projects = $this->userProjects($user);
         $users = $user->isAdmin()
-            ? $user->managedUsers()->orderBy('name')->get()
+            ? User::whereKey($user->workspaceUserIds())->orderBy('name')->get()
             : collect();
 
         // Build project→users map so the frontend can filter by selected project
@@ -201,7 +201,7 @@ class TaskController extends Controller
             'tasks.*.status'           => 'required|in:todo,in_progress,done',
             'tasks.*.due_date'         => 'required|date',
             'tasks.*.due_time'         => 'nullable|date_format:H:i',
-            'tasks.*.project_id'       => 'required|exists:projects,id',
+            'tasks.*.project_id'       => 'nullable|exists:projects,id',
             'tasks.*.assign_to'        => $authUser->isAdmin() ? 'required|exists:users,id' : 'nullable|exists:users,id',
             'tasks.*.max_submissions'  => 'nullable|integer|min:1',
             'files'                    => 'nullable|array',
@@ -220,15 +220,17 @@ class TaskController extends Controller
             $targetUser = ($authUser->isAdmin() && !empty($taskData['assign_to']))
                 ? User::findOrFail($taskData['assign_to'])
                 : $authUser;
-            abort_if($authUser->isAdmin() && $targetUser->admin_id !== $authUser->id, 403, 'Choose a user connected to your workspace.');
+            abort_if($authUser->isAdmin() && $targetUser->id !== $authUser->id && $targetUser->admin_id !== $authUser->id, 403, 'Choose a user connected to your workspace.');
 
-            $projectId = (int) $taskData['project_id'];
-            abort_unless($this->hasProjectAccess($authUser->isAdmin() ? $authUser : $targetUser, $projectId), 422, 'Choose a project assigned to this workspace.');
-            abort_if(
-                $authUser->isAdmin() && !Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(),
-                422,
-                'Assign tasks only to users who are members of the selected project folder.'
-            );
+            $projectId = !empty($taskData['project_id']) ? (int) $taskData['project_id'] : null;
+            if ($projectId !== null) {
+                abort_unless($this->hasProjectAccess($authUser->isAdmin() ? $authUser : $targetUser, $projectId), 422, 'Choose a project folder assigned to this workspace.');
+                abort_if(
+                    $authUser->isAdmin() && !Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(),
+                    422,
+                    'Assign folder tasks only to users who are members of that project folder.'
+                );
+            }
 
             $task = $targetUser->tasks()->create([
                 'title'           => $taskData['title'],
@@ -469,7 +471,7 @@ class TaskController extends Controller
                 'status'          => 'required|in:todo,in_progress,done',
                 'due_date'        => 'nullable|date',
                 'due_time'        => 'nullable|date_format:H:i',
-                'project_id'      => 'required|exists:projects,id',
+                'project_id'      => 'nullable|exists:projects,id',
                 'max_submissions' => 'nullable|integer|min:1',
                 'user_id'         => 'nullable|exists:users,id',
             ]);
@@ -483,10 +485,13 @@ class TaskController extends Controller
             $targetUser = !empty($validated['user_id'])
                 ? User::findOrFail($validated['user_id'])
                 : $task->user;
-            $projectId = (int) $validated['project_id'];
-            abort_if($targetUser->admin_id !== $user->id, 403, 'Choose a user connected to your workspace.');
-            abort_unless($this->hasProjectAccess($user, $projectId), 422, 'Choose a project assigned to your workspace.');
-            abort_unless(Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(), 422, 'Assign tasks only to users who are members of the selected project folder.');
+            $projectId = !empty($validated['project_id']) ? (int) $validated['project_id'] : null;
+            abort_if($targetUser->id !== $user->id && $targetUser->admin_id !== $user->id, 403, 'Choose a user connected to your workspace.');
+
+            if ($projectId !== null) {
+                abort_unless($this->hasProjectAccess($user, $projectId), 422, 'Choose a project folder assigned to your workspace.');
+                abort_unless(Project::where('id', $projectId)->whereHas('members', fn($q) => $q->where('users.id', $targetUser->id))->exists(), 422, 'Assign folder tasks only to users who are members of that project folder.');
+            }
         }
 
         $task->update($validated);

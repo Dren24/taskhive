@@ -111,6 +111,68 @@ class ProjectMembershipTest extends TestCase
             ->exists());
     }
 
+    public function test_global_task_creation_does_not_require_project_folder(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => $admin->id]);
+
+        $response = $this->actingAs($admin)->post(route('tasks.store'), [
+            'tasks' => [[
+                'title' => 'Global Task',
+                'description' => null,
+                'priority' => 'medium',
+                'status' => 'todo',
+                'due_date' => now()->addDay()->format('Y-m-d'),
+                'due_time' => '',
+                'project_id' => '',
+                'assign_to' => $member->id,
+                'max_submissions' => '',
+            ]],
+        ]);
+
+        $response->assertRedirect(route('tasks.index'));
+        $this->assertDatabaseHas('tasks', [
+            'title' => 'Global Task',
+            'user_id' => $member->id,
+            'project_id' => null,
+        ]);
+    }
+
+    public function test_global_task_page_excludes_project_folder_tasks(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $member = User::factory()->create(['role' => 'user', 'admin_id' => $admin->id]);
+        $project = Project::create([
+            'user_id' => $member->id,
+            'name' => 'Client Work',
+            'color' => '#8B5CF6',
+        ]);
+        $project->members()->attach($member->id);
+
+        Task::create([
+            'user_id' => $member->id,
+            'project_id' => null,
+            'title' => 'Visible Global Task',
+            'priority' => 'medium',
+            'status' => 'todo',
+            'due_date' => now()->addDay()->format('Y-m-d'),
+        ]);
+        Task::create([
+            'user_id' => $member->id,
+            'project_id' => $project->id,
+            'title' => 'Hidden Folder Task',
+            'priority' => 'medium',
+            'status' => 'todo',
+            'due_date' => now()->addDay()->format('Y-m-d'),
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('tasks.index'));
+
+        $response->assertOk();
+        $response->assertSee('Visible Global Task');
+        $response->assertDontSee('Hidden Folder Task');
+    }
+
     public function test_task_creation_requires_deadline_date_but_not_time(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

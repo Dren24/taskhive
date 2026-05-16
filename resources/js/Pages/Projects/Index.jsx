@@ -266,7 +266,7 @@ export default function ProjectsIndex({ projects, users = [], isAdmin }) {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Projects</h1>
                         <p className="text-sm text-gray-400 mt-0.5">
-                            {projects.length} project{projects.length !== 1 ? 's' : ''} total
+                            {projects.length} project folder{projects.length !== 1 ? 's' : ''} total
                         </p>
                     </div>
                     {isAdmin && (

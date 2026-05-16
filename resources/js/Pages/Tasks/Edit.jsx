@@ -307,22 +307,23 @@ export default function TaskEdit({ task, projects, users, groupMembers = [], isA
                             {isAdmin && canEdit && projects && projects.length > 0 && (
                                 <div>
                                     <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                                        Project / Folder <span className="text-rose-400">*</span>
+                                        Scope
                                     </label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">📁</span>
                                         <select
                                             value={data.project_id}
                                             onChange={e => setData('project_id', e.target.value)}
-                                            required
                                             className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-3 text-sm text-gray-800
                                                 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent
                                                 hover:border-gray-300 transition bg-gray-50/50 appearance-none"
                                         >
+                                            <option value="">Global Task</option>
                                             {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                         </select>
                                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">▾</span>
                                     </div>
+                                    <p className="text-xs text-gray-400 mt-1">Global tasks stay on the Task Page. Folder tasks belong only to the selected project folder.</p>
                                 </div>
                             )}
 

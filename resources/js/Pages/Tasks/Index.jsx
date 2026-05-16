@@ -389,20 +389,20 @@ export default function TaskIndex({ tasks, isAdmin, projectOptions = [] }) {
 
     return (
         <AppLayout>
-            <Head title="Tasks" />
+            <Head title="Global Tasks" />
             <div className="max-w-5xl mx-auto px-4 py-6 space-y-5">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-lg font-bold text-gray-900">Tasks</h1>
-                        <p className="text-sm text-gray-500">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</p>
+                        <h1 className="text-lg font-bold text-gray-900">Global Tasks</h1>
+                        <p className="text-sm text-gray-500">{tasks.length} standalone task{tasks.length !== 1 ? 's' : ''}. Folder tasks live inside Projects.</p>
                     </div>
                     {isAdmin && (
                         <Link href={route('tasks.create')}
                             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition"
                             style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                            New Task
+                            New Global Task
                         </Link>
                     )}
                 </div>

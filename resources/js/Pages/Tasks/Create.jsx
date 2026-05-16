@@ -10,7 +10,7 @@ function emptyRow(authId) {
     return { title: '', description: '', priority: 'medium', status: 'todo', due_date: '', due_time: '', project_id: '', assign_to: authId || '', max_submissions: '' };
 }
 
-export default function TaskCreate({ projects, users, projectUsers, isAdmin, authId }) {
+export default function TaskCreate({ users, isAdmin, authId }) {
     const [rows, setRows] = useState([{ ...emptyRow(authId), project_id: '' }]);
     const [files, setFiles] = useState([[]]);   // array of file arrays, one per row
     const [processing, setProcessing] = useState(false);
@@ -20,10 +20,7 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
     const updateRow = (i, field, value) => {
         setRows(prev => prev.map((r, idx) => {
             if (idx !== i) return r;
-            const updated = { ...r, [field]: value };
-            // When project changes, reset assign_to so stale user is cleared
-            if (field === 'project_id') updated.assign_to = '';
-            return updated;
+            return { ...r, [field]: value };
         }));
     };
 
@@ -68,11 +65,11 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
 
     return (
         <AppLayout>
-            <Head title="Create Tasks" />
+            <Head title="Create Global Tasks" />
             <div className="max-w-4xl mx-auto px-4 py-6">
                 <div className="mb-5">
-                    <h1 className="text-lg font-bold text-gray-900">Create Tasks</h1>
-                    <p className="text-sm text-gray-500">Add one or more tasks at once.</p>
+                    <h1 className="text-lg font-bold text-gray-900">Create Global Tasks</h1>
+                    <p className="text-sm text-gray-500">Assign standalone tasks across your workspace. Folder tasks are created inside a project folder.</p>
                 </div>
 
                 <form onSubmit={submit}>
@@ -132,17 +129,6 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
                                         <input type="time" value={row.due_time} onChange={e => updateRow(i, 'due_time', e.target.value)}
                                             className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
                                     </div>
-                                    {projects && projects.length > 0 && (
-                                        <div>
-                                            <label className="block text-xs font-semibold text-gray-500 mb-1.5">Project *</label>
-                                            <select value={row.project_id} onChange={e => updateRow(i, 'project_id', e.target.value)}
-                                                required
-                                                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
-                                                <option value="">Select project</option>
-                                                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                            </select>
-                                        </div>
-                                    )}
                                     {isAdmin && users && users.length > 0 && (
                                         <div>
                                             <label className="block text-xs font-semibold text-gray-500 mb-1.5">Assign To *</label>
@@ -150,15 +136,9 @@ export default function TaskCreate({ projects, users, projectUsers, isAdmin, aut
                                                 required
                                                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400">
                                                 <option value="">Select user</option>
-                                                {(row.project_id && projectUsers ? (projectUsers[row.project_id] || []) : [])
-                                                    .map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                             </select>
-                                            {!row.project_id && (
-                                                <p className="text-xs text-gray-400 mt-1">Select a project first to show folder members.</p>
-                                            )}
-                                            {row.project_id && projectUsers && projectUsers[row.project_id]?.length === 0 && (
-                                                <p className="text-xs text-amber-500 mt-1">No users assigned to this project yet.</p>
-                                            )}
+                                            <p className="text-xs text-gray-400 mt-1">Global tasks can be assigned to any workspace user.</p>
                                         </div>
                                     )}
                                     {isAdmin && (

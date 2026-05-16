@@ -32,6 +32,17 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
     const [doneTask, setDoneTask] = useState(null);
     const [doneProjectId, setDoneProjectId] = useState('');
     const [doneSubmitting, setDoneSubmitting] = useState(false);
+    const [showFolderTask, setShowFolderTask] = useState(false);
+    const [folderTask, setFolderTask] = useState({
+        title: '',
+        description: '',
+        priority: 'medium',
+        due_date: '',
+        due_time: '',
+        assign_to: '',
+        max_submissions: '',
+    });
+    const [folderTaskSubmitting, setFolderTaskSubmitting] = useState(false);
 
     // Group Task modal state
     const [showGroupTask, setShowGroupTask] = useState(false);
@@ -59,6 +70,43 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
         setGtDueDate(''); setGtDueTime(''); setGtSelectedUsers([]);
         setGtSubmissionMode('manual'); setGtLeaderUserId('');
         setShowGroupTask(true);
+    };
+
+    const openFolderTask = () => {
+        setFolderTask({
+            title: '',
+            description: '',
+            priority: 'medium',
+            due_date: '',
+            due_time: '',
+            assign_to: assignableUsers?.[0]?.id ? String(assignableUsers[0].id) : '',
+            max_submissions: '',
+        });
+        setShowFolderTask(true);
+    };
+
+    const submitFolderTask = (e) => {
+        e.preventDefault();
+        if (!folderTask.title.trim() || !folderTask.due_date || !folderTask.assign_to) return;
+
+        router.post(route('tasks.store'), {
+            tasks: [{
+                title: folderTask.title.trim(),
+                description: folderTask.description.trim(),
+                priority: folderTask.priority,
+                status: 'todo',
+                due_date: folderTask.due_date,
+                due_time: folderTask.due_time || null,
+                project_id: project.id,
+                assign_to: folderTask.assign_to,
+                max_submissions: folderTask.max_submissions || '',
+            }],
+        }, {
+            preserveScroll: true,
+            onStart: () => setFolderTaskSubmitting(true),
+            onFinish: () => setFolderTaskSubmitting(false),
+            onSuccess: () => setShowFolderTask(false),
+        });
     };
 
     const submitGroupTask = (e) => {
@@ -185,18 +233,27 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                         <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
                     </div>
                     <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-purple-500">Project Folder Task View</p>
                         <h1 className="text-lg font-bold text-gray-900">{project.name}</h1>
-                        <p className="text-sm text-gray-500">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</p>
+                        <p className="text-sm text-gray-500">{tasks.length} isolated folder task{tasks.length !== 1 ? 's' : ''}</p>
                     </div>
                     <div className="ml-auto flex items-center gap-2">
                         {isAdmin && (
-                            <button
-                                onClick={openGroupTask}
-                                className="px-3 py-1.5 text-xs font-semibold rounded-xl text-white shadow-sm hover:opacity-90 transition"
-                                style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
-                            >
-                                👥 Group Task
-                            </button>
+                            <>
+                                <button
+                                    onClick={openFolderTask}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-xl text-white shadow-sm hover:opacity-90 transition"
+                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
+                                >
+                                    + Folder Task
+                                </button>
+                                <button
+                                    onClick={openGroupTask}
+                                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                >
+                                    👥 Group Task
+                                </button>
+                            </>
                         )}
                         <Link href={route('projects.index')} className="text-sm text-purple-600 hover:underline">← All Projects</Link>
                     </div>
@@ -209,12 +266,13 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                             <p className="text-gray-400 text-sm mb-4">No tasks in this project yet.</p>
                             {isAdmin && (
                                 <div className="flex justify-center gap-3">
-                                    <Link
-                                        href={route('tasks.create') + `?project_id=${project.id}`}
+                                    <button
+                                        type="button"
+                                        onClick={openFolderTask}
                                         className="px-4 py-2 text-sm font-semibold rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
                                     >
-                                        + New Task
-                                    </Link>
+                                        + New Folder Task
+                                    </button>
                                     <button
                                         onClick={openGroupTask}
                                         className="px-4 py-2 text-sm font-semibold rounded-xl text-white shadow hover:opacity-90 transition"
@@ -490,6 +548,120 @@ export default function ProjectShow({ project, tasks, comments = [], isAdmin, au
                                     style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}
                                 >
                                     {doneSubmitting ? 'Saving...' : 'Mark Done'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {showFolderTask && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-lg bg-white rounded-2xl border border-gray-100 shadow-xl max-h-[90vh] flex flex-col">
+                        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-sm font-bold text-gray-900">Create Folder Task</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">This task stays inside <strong>{project.name}</strong>.</p>
+                            </div>
+                            <button onClick={() => { if (!folderTaskSubmitting) setShowFolderTask(false); }} className="text-gray-400 hover:text-gray-600 text-lg">×</button>
+                        </div>
+                        <form onSubmit={submitFolderTask} className="p-5 space-y-4 overflow-y-auto flex-1">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Task Title *</label>
+                                <input
+                                    type="text"
+                                    value={folderTask.title}
+                                    onChange={e => setFolderTask(prev => ({ ...prev, title: e.target.value }))}
+                                    required
+                                    placeholder="Enter task title..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Description</label>
+                                <textarea
+                                    value={folderTask.description}
+                                    onChange={e => setFolderTask(prev => ({ ...prev, description: e.target.value }))}
+                                    rows={3}
+                                    placeholder="Optional description..."
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Priority</label>
+                                    <select
+                                        value={folderTask.priority}
+                                        onChange={e => setFolderTask(prev => ({ ...prev, priority: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                    >
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">
+                                        Date <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={folderTask.due_date}
+                                        onChange={e => setFolderTask(prev => ({ ...prev, due_date: e.target.value }))}
+                                        required
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 mb-1.5">Time <span className="text-gray-400 dark:text-slate-500 font-normal">(optional)</span></label>
+                                    <input
+                                        type="time"
+                                        value={folderTask.due_time}
+                                        onChange={e => setFolderTask(prev => ({ ...prev, due_time: e.target.value }))}
+                                        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-purple-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Assign To *</label>
+                                <select
+                                    value={folderTask.assign_to}
+                                    onChange={e => setFolderTask(prev => ({ ...prev, assign_to: e.target.value }))}
+                                    required
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"
+                                >
+                                    <option value="">Select folder member</option>
+                                    {assignableUsers.map(user => (
+                                        <option key={user.id} value={user.id}>{user.name}</option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-gray-400 mt-1">Only official members of this project folder can be assigned.</p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                                    Max Submissions <span className="text-gray-400 font-normal">(optional)</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={folderTask.max_submissions}
+                                    onChange={e => setFolderTask(prev => ({ ...prev, max_submissions: e.target.value }))}
+                                    placeholder="Leave blank for unlimited"
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                                />
+                            </div>
+                            <div className="rounded-xl border border-purple-100 bg-purple-50 px-4 py-3">
+                                <p className="text-xs font-semibold text-purple-700">Folder locked</p>
+                                <p className="text-xs text-purple-600 mt-0.5">Project field is hidden because this task is automatically tied to {project.name}.</p>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button type="button" onClick={() => { if (!folderTaskSubmitting) setShowFolderTask(false); }} disabled={folderTaskSubmitting}
+                                    className="px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={folderTaskSubmitting || !folderTask.title.trim() || !folderTask.due_date || !folderTask.assign_to}
+                                    className="px-4 py-2 text-sm font-semibold text-white rounded-xl shadow hover:opacity-90 transition disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#7c3aed,#9333ea)' }}>
+                                    {folderTaskSubmitting ? 'Creating...' : 'Create Folder Task'}
                                 </button>
                             </div>
                         </form>

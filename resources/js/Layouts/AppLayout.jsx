@@ -72,7 +72,7 @@ export default function AppLayout({ title, children }) {
                                 Dashboard
                             </NavLink>
                             <NavLink href={route('tasks.index')} active={route().current('tasks.*')}>
-                                Tasks
+                                Global Tasks
                             </NavLink>
                             <NavLink href={route('projects.index')} active={route().current('projects.*')}>
                                 Projects
@@ -236,7 +236,7 @@ export default function AppLayout({ title, children }) {
                             : 'border-light-border bg-light-bg-secondary/50'
                         }`}>
                         <MobileLink href={route('dashboard')}>Dashboard</MobileLink>
-                        <MobileLink href={route('tasks.index')}>Tasks</MobileLink>
+                        <MobileLink href={route('tasks.index')}>Global Tasks</MobileLink>
                         <MobileLink href={route('projects.index')}>Projects</MobileLink>
                         {isAdmin && <MobileLink href={route('admin.index')}>Admin</MobileLink>}
 
