@@ -19,15 +19,37 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register(): void
     {
+        User::factory()->create([
+            'role' => 'admin',
+            'admin_invitation_code' => 'ADM-TEST-CODE',
+        ]);
+
         $response = $this->post('/register', [
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'role' => 'user',
+            'admin_invitation_code' => 'ADM-TEST-CODE',
         ]);
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
+    }
+
+    public function test_user_registration_requires_admin_invitation_code(): void
+    {
+        $response = $this->from('/register')->post('/register', [
+            'name' => 'Staff User',
+            'email' => 'staff@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'user',
+        ]);
+
+        $response->assertRedirect('/register');
+        $response->assertSessionHasErrors('admin_invitation_code');
+        $this->assertGuest();
     }
 
     public function test_admin_registration_generates_invitation_code(): void

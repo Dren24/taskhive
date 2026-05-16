@@ -12,17 +12,25 @@ fi
 
 echo "==> APP_KEY prefix check: ${APP_KEY_VALUE:0:10}..."
 
+APP_URL_VALUE="${APP_URL}"
+if [ -z "$APP_URL_VALUE" ] && [ -n "$RENDER_EXTERNAL_HOSTNAME" ]; then
+    APP_URL_VALUE="https://${RENDER_EXTERNAL_HOSTNAME}"
+fi
+
 # Write .env using printf to avoid shell interpretation of special characters
 {
     printf 'APP_NAME=%s\n'       "${APP_NAME:-TaskHive}"
     printf 'APP_ENV=%s\n'        "${APP_ENV:-production}"
     printf 'APP_DEBUG=%s\n'      "${APP_DEBUG:-false}"
     printf 'APP_KEY=%s\n'        "${APP_KEY_VALUE}"
-    printf 'APP_URL=%s\n'        "${APP_URL:-http://localhost}"
+    printf 'APP_URL=%s\n'        "${APP_URL_VALUE:-http://localhost}"
     printf 'DB_CONNECTION=%s\n'  "${DB_CONNECTION:-pgsql}"
     printf 'SESSION_DRIVER=%s\n' "${SESSION_DRIVER:-cookie}"
+    printf 'SESSION_SECURE_COOKIE=%s\n' "${SESSION_SECURE_COOKIE:-true}"
     printf 'CACHE_STORE=%s\n'    "${CACHE_STORE:-array}"
+    printf 'QUEUE_CONNECTION=%s\n' "${QUEUE_CONNECTION:-sync}"
     printf 'LOG_CHANNEL=%s\n'    "${LOG_CHANNEL:-stderr}"
+    printf 'LOG_LEVEL=%s\n'      "${LOG_LEVEL:-info}"
 } > /var/www/.env
 
 # Parse DATABASE_URL into individual DB_* vars that Laravel understands

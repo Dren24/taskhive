@@ -56,7 +56,7 @@ export default function Register() {
         {
             value: 'user',
             title: 'User',
-            description: 'Join an admin workspace or create your account first and connect later.',
+            description: 'Join an admin workspace with your required invitation code.',
         },
     ];
 
@@ -134,13 +134,14 @@ export default function Register() {
                         </div>
                         {data.role === 'user' && (
                             <div>
-                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Admin Invitation Code <span className="font-normal text-gray-400">(optional)</span></label>
+                                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Admin Invitation Code <span className="font-normal text-rose-500">*</span></label>
                                 <div className="relative">
                                     <input
                                         type="text"
                                         value={data.admin_invitation_code}
                                         onChange={e => setData('admin_invitation_code', e.target.value.toUpperCase())}
                                         placeholder="ADM-XXXX-XXXX"
+                                        required
                                         className={`w-full border rounded-xl px-4 py-2.5 pr-10 text-sm text-gray-800 focus:outline-none focus:ring-2 transition ${codeState.status === 'valid'
                                             ? 'border-purple-400 bg-purple-50 focus:ring-purple-300'
                                             : codeState.status === 'invalid' || errors.admin_invitation_code

@@ -36,14 +36,14 @@ class RegisteredUserController extends Controller
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['nullable', 'in:admin,user'],
-            'admin_invitation_code' => ['nullable', 'string', 'max:24'],
+            'admin_invitation_code' => ['required_if:role,user', 'nullable', 'string', 'max:24'],
         ]);
 
         $role = $request->input('role', 'user');
         $admin = null;
         $code = trim((string) $request->input('admin_invitation_code'));
 
-        if ($role === 'user' && $code !== '') {
+        if ($role === 'user') {
             $admin = $this->findAdminByInvitationCode($code);
 
             if (!$admin || !$admin->invitationCodeIsActive()) {
