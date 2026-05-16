@@ -1,28 +1,16 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
+import { Bell, Menu, X, LogOut } from 'lucide-react';
 import BrandLogo from '../Components/BrandLogo';
+import ThemeToggle from '../Components/ThemeToggle';
+import { useTheme } from '../Context/ThemeContext';
 
 export default function AppLayout({ title, children }) {
     const { auth, notifications = [] } = usePage().props;
+    const { isDark } = useTheme();
     const [menuOpen, setMenuOpen] = useState(false);
     const [bellOpen, setBellOpen] = useState(false);
     const bellRef = useRef(null);
-    const [dark, setDark] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('theme') === 'dark';
-        }
-        return false;
-    });
-
-    useEffect(() => {
-        if (dark) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    }, [dark]);
     const isAdmin = auth?.user?.role === 'admin';
     const unread = notifications.filter(n => !n.read);
 
@@ -43,7 +31,7 @@ export default function AppLayout({ title, children }) {
         router.patch(route(routeName, notif.id), {}, {
             preserveScroll: false,
             onSuccess: () => router.visit(notif.url),
-            onError: () => router.visit(notif.url), // navigate anyway even if mark-read fails
+            onError: () => router.visit(notif.url),
         });
     }
 
@@ -52,84 +40,119 @@ export default function AppLayout({ title, children }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans">
-            {/* Top Nav */}
-            <nav className="bg-gradient-to-r from-purple-700 via-purple-600 to-purple-700 dark:from-purple-900 dark:via-purple-800 dark:to-purple-900 border-b border-purple-800 sticky top-0 z-30">
+        <div className={`min-h-screen transition-colors duration-300 ${isDark
+                ? 'bg-dark-bg text-dark-text'
+                : 'bg-light-bg text-light-text'
+            }`}>
+            {/* Premium Top Navigation */}
+            <nav className={`sticky top-0 z-30 backdrop-blur-md ${isDark
+                    ? 'bg-dark-bg-secondary/80 border-dark-border'
+                    : 'bg-white/80 border-light-border'
+                } border-b transition-all duration-300`}>
                 <div className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between h-14">
+                    <div className="flex items-center justify-between h-16">
                         {/* Logo */}
-                        <Link href={route('dashboard')} className="flex items-center gap-2">
-                            <BrandLogo compact iconSize="w-7 h-7" labelSize="text-sm" labelClass="text-white" />
+                        <Link
+                            href={route('dashboard')}
+                            className={`flex items-center gap-3 font-bold text-lg transition-opacity hover:opacity-80 ${isDark ? 'text-white' : 'text-accent-700'
+                                }`}
+                        >
+                            <div className={`w-8 h-8 rounded-lg ${isDark
+                                    ? 'bg-gradient-to-br from-accent-500 to-accent-600'
+                                    : 'bg-gradient-to-br from-accent-600 to-accent-700'
+                                } flex items-center justify-center`}>
+                                <span className="text-white text-sm font-bold">T</span>
+                            </div>
+                            <span className="hidden sm:inline">TaskHive</span>
                         </Link>
 
-                        {/* Desktop nav links */}
+                        {/* Desktop Navigation Links */}
                         <div className="hidden sm:flex items-center gap-1">
-                            <NavLink href={route('dashboard')} active={route().current('dashboard')}>Dashboard</NavLink>
-                            <NavLink href={route('tasks.index')} active={route().current('tasks.*')}>Tasks</NavLink>
-                            <NavLink href={route('projects.index')} active={route().current('projects.*')}>Projects</NavLink>
+                            <NavLink href={route('dashboard')} active={route().current('dashboard')}>
+                                Dashboard
+                            </NavLink>
+                            <NavLink href={route('tasks.index')} active={route().current('tasks.*')}>
+                                Tasks
+                            </NavLink>
+                            <NavLink href={route('projects.index')} active={route().current('projects.*')}>
+                                Projects
+                            </NavLink>
                             {isAdmin && (
-                                <NavLink href={route('admin.index')} active={route().current('admin.*')}>Admin</NavLink>
+                                <NavLink href={route('admin.index')} active={route().current('admin.*')}>
+                                    Admin
+                                </NavLink>
                             )}
                         </div>
 
-                        {/* User area */}
+                        {/* Right Side Controls */}
                         <div className="hidden sm:flex items-center gap-3">
-                            {/* Dark mode toggle */}
-                            <button
-                                onClick={() => setDark(d => !d)}
-                                className="p-1.5 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition"
-                                aria-label="Toggle dark mode"
-                            >
-                                {dark ? (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                    </svg>
-                                ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                    </svg>
-                                )}
-                            </button>
+                            {/* Theme Toggle */}
+                            <ThemeToggle />
 
-                            {/* Bell */}
+                            {/* Notifications Bell */}
                             <div className="relative" ref={bellRef}>
                                 <button
                                     onClick={() => setBellOpen(v => !v)}
-                                    className="relative p-1.5 rounded-lg text-purple-100 hover:text-white hover:bg-white/10 transition"
+                                    className={`relative p-2.5 rounded-lg transition-all duration-200 ${isDark
+                                            ? 'bg-dark-bg-tertiary hover:bg-dark-border text-dark-text-secondary hover:text-dark-text'
+                                            : 'bg-light-bg-secondary hover:bg-light-bg-tertiary text-light-text-secondary hover:text-light-text'
+                                        } ${bellOpen ? (isDark ? 'bg-dark-border' : 'bg-light-bg-tertiary') : ''}`}
                                     aria-label="Notifications"
                                 >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 00-5-5.917V4a1 1 0 10-2 0v1.083A6 6 0 006 11v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0a3 3 0 01-6 0" />
-                                    </svg>
+                                    <Bell size={20} />
                                     {unread.length > 0 && (
-                                        <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                                        <span className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 text-[11px] font-bold text-white bg-red-500 rounded-full animate-pulse">
                                             {unread.length > 9 ? '9+' : unread.length}
                                         </span>
                                     )}
                                 </button>
 
+                                {/* Notifications Dropdown */}
                                 {bellOpen && (
-                                    <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden z-50">
-                                        <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 dark:border-gray-700">
-                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Notifications</span>
+                                    <div className={`absolute right-0 mt-2 w-96 rounded-xl shadow-elevated-dark border transition-all duration-300 animate-slideDown overflow-hidden ${isDark
+                                            ? 'bg-dark-bg-secondary border-dark-border'
+                                            : 'bg-white border-light-border'
+                                        }`}>
+                                        {/* Header */}
+                                        <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-dark-border' : 'border-light-border'
+                                            }`}>
+                                            <span className={`text-sm font-semibold ${isDark ? 'text-dark-text' : 'text-light-text'
+                                                }`}>
+                                                Notifications
+                                            </span>
                                             {unread.length > 0 && (
-                                                <button onClick={markAllRead} className="text-xs text-purple-600 hover:underline">
+                                                <button
+                                                    onClick={markAllRead}
+                                                    className="text-xs text-accent-600 hover:text-accent-700 dark:text-accent-400 hover:underline font-medium"
+                                                >
                                                     Mark all read
                                                 </button>
                                             )}
                                         </div>
-                                        <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+
+                                        {/* Notifications List */}
+                                        <div className="max-h-96 overflow-y-auto scrollbar-thin divide-y divide-light-border dark:divide-dark-border">
                                             {notifications.length === 0 ? (
-                                                <p className="text-sm text-gray-400 px-4 py-4 text-center">No notifications</p>
+                                                <p className={`text-sm px-4 py-8 text-center ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                                                    }`}>
+                                                    No notifications yet
+                                                </p>
                                             ) : (
                                                 notifications.map(n => (
                                                     <button
                                                         key={n.id}
                                                         onClick={() => markRead(n)}
-                                                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition ${!n.read ? 'bg-purple-50/40' : ''}`}
+                                                        className={`w-full text-left px-4 py-3 transition-colors duration-200 ${!n.read
+                                                                ? isDark
+                                                                    ? 'bg-accent-500/15'
+                                                                    : 'bg-accent-50'
+                                                                : isDark
+                                                                    ? 'hover:bg-dark-bg-tertiary'
+                                                                    : 'hover:bg-light-bg-secondary'
+                                                            }`}
                                                     >
-                                                        <div className="flex items-start gap-2.5">
-                                                            <span className="text-base mt-0.5">
+                                                        <div className="flex items-start gap-3">
+                                                            <span className="text-lg flex-shrink-0">
                                                                 {n.type === 'reopen_request' ? '📩'
                                                                     : n.type === 'overdue' ? '🚨'
                                                                         : n.type === 'due_soon' ? '⏰'
@@ -141,10 +164,18 @@ export default function AppLayout({ title, children }) {
                                                                                                 : '🔔'}
                                                             </span>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-gray-800 truncate">{n.title}</p>
-                                                                <p className="text-xs text-gray-400 mt-0.5">{n.message} · {n.created_at}</p>
+                                                                <p className={`text-sm font-medium truncate ${isDark ? 'text-dark-text' : 'text-light-text'
+                                                                    }`}>
+                                                                    {n.title}
+                                                                </p>
+                                                                <p className={`text-xs mt-1 ${isDark ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'
+                                                                    }`}>
+                                                                    {n.message} · {n.created_at}
+                                                                </p>
                                                             </div>
-                                                            {!n.read && <span className="w-2 h-2 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />}
+                                                            {!n.read && (
+                                                                <span className="w-2 h-2 rounded-full bg-accent-500 mt-1.5 flex-shrink-0" />
+                                                            )}
                                                         </div>
                                                     </button>
                                                 ))
@@ -154,54 +185,80 @@ export default function AppLayout({ title, children }) {
                                 )}
                             </div>
 
-                            <span className="text-sm text-purple-100">{auth?.user?.name}</span>
-                            <Link
-                                href={route('profile.edit')}
-                                className="text-xs px-3 py-1.5 rounded-lg border border-white/30 text-white/90 hover:bg-white/10 transition font-medium"
-                            >
-                                Profile
-                            </Link>
-                            <Link
-                                href={route('logout')}
-                                method="post"
-                                as="button"
-                                className="text-xs px-3 py-1.5 rounded-lg border border-white/30 text-white/90 hover:bg-white/10 transition font-medium"
-                            >
-                                Log Out
-                            </Link>
+                            {/* User Menu */}
+                            <div className={`flex items-center gap-3 pl-3 ${isDark ? 'border-l border-dark-border' : 'border-l border-light-border'
+                                }`}>
+                                <span className={`text-sm font-medium hidden sm:inline ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                                    }`}>
+                                    {auth?.user?.name}
+                                </span>
+                                <Link
+                                    href={route('profile.edit')}
+                                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isDark
+                                            ? 'bg-dark-bg-tertiary hover:bg-dark-border text-dark-text-secondary hover:text-dark-text'
+                                            : 'bg-light-bg-secondary hover:bg-light-bg-tertiary text-light-text-secondary hover:text-light-text'
+                                        }`}
+                                >
+                                    Profile
+                                </Link>
+                                <Link
+                                    href={route('logout')}
+                                    method="post"
+                                    as="button"
+                                    className={`p-2.5 rounded-lg transition-all duration-200 ${isDark
+                                            ? 'bg-dark-bg-tertiary hover:bg-red-500/20 text-dark-text-secondary hover:text-red-400'
+                                            : 'bg-light-bg-secondary hover:bg-red-50 text-light-text-secondary hover:text-red-600'
+                                        }`}
+                                    title="Logout"
+                                >
+                                    <LogOut size={18} />
+                                </Link>
+                            </div>
                         </div>
 
-                        {/* Hamburger */}
-                        <button className="sm:hidden p-2 rounded-md text-purple-100" onClick={() => setMenuOpen(!menuOpen)}>
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                {menuOpen
-                                    ? <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                    : <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                                }
-                            </svg>
+                        {/* Mobile Menu Button */}
+                        <button
+                            className={`sm:hidden p-2 rounded-lg transition-colors ${isDark
+                                    ? 'bg-dark-bg-tertiary hover:bg-dark-border text-dark-text'
+                                    : 'bg-light-bg-secondary hover:bg-light-bg-tertiary text-light-text'
+                                }`}
+                            onClick={() => setMenuOpen(!menuOpen)}
+                        >
+                            {menuOpen ? <X size={24} /> : <Menu size={24} />}
                         </button>
                     </div>
                 </div>
 
-                {/* Mobile menu */}
+                {/* Mobile Menu */}
                 {menuOpen && (
-                    <div className="sm:hidden px-4 pb-4 pt-2 space-y-1 border-t border-white/10 bg-purple-700/30">
+                    <div className={`sm:hidden px-4 pb-4 pt-2 space-y-2 border-t transition-colors duration-300 ${isDark
+                            ? 'border-dark-border bg-dark-bg-secondary/50'
+                            : 'border-light-border bg-light-bg-secondary/50'
+                        }`}>
                         <MobileLink href={route('dashboard')}>Dashboard</MobileLink>
                         <MobileLink href={route('tasks.index')}>Tasks</MobileLink>
                         <MobileLink href={route('projects.index')}>Projects</MobileLink>
                         {isAdmin && <MobileLink href={route('admin.index')}>Admin</MobileLink>}
-                        <MobileLink href={route('profile.edit')}>Profile</MobileLink>
-                        {/* Mobile notifications */}
+
                         {notifications.length > 0 && (
-                            <div className="pt-1 border-t border-gray-100">
-                                <p className="text-xs font-semibold text-gray-400 px-3 pb-1 uppercase tracking-wide">
+                            <div className={`pt-2 mt-2 border-t space-y-2 ${isDark ? 'border-dark-border' : 'border-light-border'
+                                }`}>
+                                <p className={`text-xs font-semibold uppercase tracking-wide px-3 ${isDark ? 'text-dark-text-tertiary' : 'text-light-text-tertiary'
+                                    }`}>
                                     Notifications {unread.length > 0 && <span className="text-red-500">({unread.length})</span>}
                                 </p>
                                 {notifications.slice(0, 5).map(n => (
                                     <button
                                         key={n.id}
                                         onClick={() => { setMenuOpen(false); markRead(n); }}
-                                        className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-white/10 ${!n.read ? 'font-medium text-white' : 'text-purple-100'}`}
+                                        className={`w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${!n.read
+                                                ? isDark
+                                                    ? 'font-medium text-dark-text bg-accent-500/15'
+                                                    : 'font-medium text-light-text bg-accent-50'
+                                                : isDark
+                                                    ? 'text-dark-text-secondary hover:bg-dark-bg-tertiary'
+                                                    : 'text-light-text-secondary hover:bg-light-bg-secondary'
+                                            }`}
                                     >
                                         {n.type === 'reopen_request' ? '📩'
                                             : n.type === 'overdue' ? '🚨'
@@ -215,42 +272,68 @@ export default function AppLayout({ title, children }) {
                                     </button>
                                 ))}
                                 {unread.length > 0 && (
-                                    <button onClick={() => { markAllRead(); setMenuOpen(false); }} className="w-full text-left px-3 py-1.5 text-xs text-white/80 hover:underline">
+                                    <button
+                                        onClick={() => { markAllRead(); setMenuOpen(false); }}
+                                        className="w-full text-left px-3 py-1.5 text-xs text-accent-600 dark:text-accent-400 hover:underline font-medium"
+                                    >
                                         Mark all read
                                     </button>
                                 )}
                             </div>
                         )}
+
+                        <div className={`pt-2 border-t ${isDark ? 'border-dark-border' : 'border-light-border'}`}>
+                            <MobileLink href={route('profile.edit')}>Profile</MobileLink>
                             <Link
                                 href={route('logout')}
                                 method="post"
                                 as="button"
-                                className="block w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-white/10 rounded-lg"
+                                className={`block w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${isDark
+                                        ? 'text-red-400 hover:bg-red-500/10'
+                                        : 'text-red-600 hover:bg-red-50'
+                                    }`}
                             >
                                 Log Out
                             </Link>
+                        </div>
                     </div>
                 )}
             </nav>
 
-            {/* Main content */}
+            {/* Main Content Area */}
             <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {title && (
-                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">{title}</h1>
+                    <div className="mb-8">
+                        <h1 className={`text-3xl sm:text-4xl font-bold transition-colors ${isDark
+                                ? 'text-white'
+                                : 'text-dark'
+                            }`}>
+                            {title}
+                        </h1>
+                        <div className={`mt-2 h-1 w-16 rounded-full bg-gradient-to-r from-accent-500 to-accent-600`} />
+                    </div>
                 )}
-                {children}
+                <div className="animate-fadeInScale">
+                    {children}
+                </div>
             </main>
         </div>
     );
 }
 
 function NavLink({ href, active, children }) {
+    const { isDark } = useTheme();
+
     return (
         <Link
             href={href}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${active
-                ? 'text-white bg-white/20'
-                : 'text-purple-100 hover:text-white hover:bg-white/10'
+            className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${active
+                    ? isDark
+                        ? 'bg-accent-500/25 text-accent-300'
+                        : 'bg-accent-100 text-accent-700'
+                    : isDark
+                        ? 'text-dark-text-secondary hover:text-dark-text hover:bg-dark-bg-tertiary'
+                        : 'text-light-text-secondary hover:text-light-text hover:bg-light-bg-secondary'
                 }`}
         >
             {children}
@@ -259,8 +342,16 @@ function NavLink({ href, active, children }) {
 }
 
 function MobileLink({ href, children }) {
+    const { isDark } = useTheme();
+
     return (
-        <Link href={href} className="block px-3 py-2 text-sm text-purple-100 hover:bg-white/10 rounded-lg">
+        <Link
+            href={href}
+            className={`block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${isDark
+                    ? 'text-dark-text-secondary hover:text-dark-text hover:bg-dark-bg-tertiary'
+                    : 'text-light-text-secondary hover:text-light-text hover:bg-light-bg-secondary'
+                }`}
+        >
             {children}
         </Link>
     );
